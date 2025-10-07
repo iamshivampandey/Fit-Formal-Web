@@ -1,0 +1,190 @@
+/* SplashScreen.css - Splash Screen Styles */
+
+.splash-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background-color: #F2F2F7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+}
+
+.splash-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 2rem;
+}
+
+/* Loading Spinner */
+.loading-spinner {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 0.5rem;
+}
+
+.spinner-bar {
+  position: absolute;
+  width: 4px;
+  height: 12px;
+  background-color: #8E8E93;
+  border-radius: 2px;
+  transform-origin: 20px 20px;
+  animation: spin 1.2s linear infinite;
+}
+
+.spinner-bar:nth-child(1) {
+  transform: rotate(0deg);
+  animation-delay: 0s;
+}
+
+.spinner-bar:nth-child(2) {
+  transform: rotate(45deg);
+  animation-delay: 0.15s;
+}
+
+.spinner-bar:nth-child(3) {
+  transform: rotate(90deg);
+  animation-delay: 0.3s;
+}
+
+.spinner-bar:nth-child(4) {
+  transform: rotate(135deg);
+  animation-delay: 0.45s;
+}
+
+.spinner-bar:nth-child(5) {
+  transform: rotate(180deg);
+  animation-delay: 0.6s;
+}
+
+.spinner-bar:nth-child(6) {
+  transform: rotate(225deg);
+  animation-delay: 0.75s;
+}
+
+.spinner-bar:nth-child(7) {
+  transform: rotate(270deg);
+  animation-delay: 0.9s;
+}
+
+.spinner-bar:nth-child(8) {
+  transform: rotate(315deg);
+  animation-delay: 1.05s;
+}
+
+@keyframes spin {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* App Title */
+.app-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #654321;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+/* Status Message */
+.status-message {
+  font-size: 1rem;
+  color: #8E8E93;
+  margin: 0;
+  font-weight: 400;
+}
+
+/* Responsive Design */
+@media (min-width: 768px) {
+  .app-title {
+    font-size: 2.5rem;
+  }
+  
+  .status-message {
+    font-size: 1.1rem;
+  }
+  
+  .loading-spinner {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .spinner-bar {
+    width: 5px;
+    height: 15px;
+    transform-origin: 25px 25px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-title {
+    font-size: 3rem;
+  }
+  
+  .status-message {
+    font-size: 1.2rem;
+  }
+  
+  .loading-spinner {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .spinner-bar {
+    width: 6px;
+    height: 18px;
+    transform-origin: 30px 30px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .splash-container {
+    background-color: #000000;
+  }
+  
+  .app-title {
+    color: #ffffff;
+  }
+  
+  .status-message {
+    color: #8E8E93;
+  }
+  
+  .spinner-bar {
+    background-color: #8E8E93;
+  }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  .spinner-bar {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
+/* Fade out animation for smooth transition */
+.splash-container.fade-out {
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+}
