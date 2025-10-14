@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import LoginForm from './components/LoginForm'
-import SignupForm from './components/SignupForm'
+import MultiStepSignup from './components/MultiStepSignup'
 import SplashScreen from './components/SplashScreen'
+import Toast from './components/Toast'
 import './App.css'
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [currentView, setCurrentView] = useState('login'); // 'login' or 'signup'
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     // Show splash screen for 1 second, then show login form
@@ -47,10 +49,18 @@ function App() {
     setCurrentView('login');
   };
 
-  const handleSignupSubmit = (formData) => {
-    console.log('Signup attempt:', formData);
-    // Add your signup logic here
-    alert(`Signup attempt with: ${formData.firstName} ${formData.lastName}, ${formData.email}, ${formData.phoneNumber}`);
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+  };
+
+  const handleSignupSubmit = (data) => {
+    console.log('✅ Signup successful! API Response:', data);
+    
+    // Show success toast message
+    showToast('Account created successfully! Please sign in with your credentials.', 'success');
+    
+    // Redirect to sign-in page
+    setCurrentView('login');
   };
 
   const handleTermsClick = () => {
@@ -87,12 +97,18 @@ function App() {
           onFaqClick={handleFaqClick}
         />
       ) : (
-        <SignupForm
-          appName="Fit Formal"
-          onSignup={handleSignupSubmit}
+        <MultiStepSignup
           onBackToLogin={handleBackToLogin}
-          onTermsClick={handleTermsClick}
-          onPrivacyClick={handlePrivacyClick}
+          onSignupComplete={handleSignupSubmit}
+        />
+      )}
+      
+      {/* Toast notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
         />
       )}
     </div>
