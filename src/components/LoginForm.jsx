@@ -16,6 +16,9 @@ const LoginForm = ({
     password: ''
   });
   const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -51,10 +54,76 @@ const LoginForm = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (validateForm() && onLogin) {
-      onLogin(formData);
+    setApiError('');
+    
+    console.log('📝 Login form submission started');
+    console.log('📋 Current form data:', formData);
+    
+    const isValid = validateForm();
+    console.log('✔️ Form is valid:', isValid);
+    
+    if (!isValid) {
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    const requestPayload = {
+      email: formData.email,
+      password: formData.password
+    };
+    
+    console.log('🚀 Making API call to /api/auth/login');
+    console.log('📦 Request payload:', requestPayload);
+    
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestPayload)
+      });
+      
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response headers:', response.headers);
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server error: API endpoint not available. Please ensure the backend server is running.');
+      }
+      
+      const data = await response.json();
+      console.log('✅ API Response data:', data);
+      
+      if (!response.ok) {
+        if (data.errors && Array.isArray(data.errors)) {
+          console.log('🔴 Backend validation errors:', data.errors);
+          const errorMessages = data.errors.map(err => {
+            if (typeof err === 'string') return err;
+            if (err.message) return err.message;
+            if (err.msg) return err.msg;
+            return JSON.stringify(err);
+          }).join('\n');
+          setApiError(errorMessages || data.message || 'Login failed. Please check your credentials.');
+        } else {
+          setApiError(data.message || 'Login failed. Please check your credentials.');
+        }
+        return;
+      }
+      
+      if (onLogin) {
+        console.log('✅ Login successful, calling onLogin callback');
+        onLogin(data);
+      }
+      
+    } catch (error) {
+      console.error('❌ Login error:', error);
+      setApiError(error.message || 'An error occurred during login. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -93,20 +162,46 @@ const LoginForm = ({
           </div>
 
           <div className="input-group">
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleInputChange}
-              placeholder="Password"
-              className={`form-input ${errors.password ? 'error' : ''}`}
-              autoComplete="current-password"
-            />
+            <div className="password-input-wrapper">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={formData.password}
+                onChange={handleInputChange}
+                placeholder="Password"
+                className={`form-input ${errors.password ? 'error' : ''}`}
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                )}
+              </button>
+            </div>
             {errors.password && <span className="error-message">{errors.password}</span>}
           </div>
 
-          <button type="submit" className="login-button">
-            Login
+          {apiError && (
+            <div className="api-error-message">
+              {apiError}
+            </div>
+          )}
+
+          <button type="submit" className="login-button" disabled={isLoading}>
+            {isLoading ? 'Logging in...' : 'Login'}
           </button>
         </form>
 

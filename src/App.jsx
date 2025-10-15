@@ -3,12 +3,14 @@ import LoginForm from './components/LoginForm'
 import MultiStepSignup from './components/MultiStepSignup'
 import SplashScreen from './components/SplashScreen'
 import Toast from './components/Toast'
+import Home from './components/Home'
 import './App.css'
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
-  const [currentView, setCurrentView] = useState('login'); // 'login' or 'signup'
+  const [currentView, setCurrentView] = useState('login'); // 'login', 'signup', or 'home'
   const [toast, setToast] = useState(null);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
     // Show splash screen for 1 second, then show login form
@@ -21,10 +23,39 @@ function App() {
   }, []);
 
   // Example handlers for the LoginForm component
-  const handleLogin = (formData) => {
-    console.log('Login attempt:', formData);
-    // Add your login logic here
-    alert(`Login attempt with email: ${formData.email}`);
+  const handleLogin = (response) => {
+    console.log('✅ Login successful! API Response:', response);
+    
+    // Extract user and role information from the response
+    const userData = response.data?.user || response.user;
+    const roles = response.data?.roles || response.roles || [];
+    const token = response.data?.token || response.token;
+    
+    // Get the first role (primary role)
+    const primaryRole = roles[0];
+    
+    console.log('👤 User:', userData);
+    console.log('🎭 Roles:', roles);
+    console.log('🎭 Primary Role:', primaryRole);
+    console.log('🔑 Token:', token ? 'Received' : 'Not found');
+    
+    // Combine user data with role information
+    const userWithRole = {
+      ...userData,
+      roleId: primaryRole?.id,
+      roleName: primaryRole?.name,
+      roles: roles,
+      token: token
+    };
+    
+    console.log('💾 Storing combined user data:', userWithRole);
+    setUser(userWithRole);
+    
+    // Show success toast
+    showToast(`Login successful! Welcome back, ${userData.firstName}!`, 'success');
+    
+    // Navigate to home screen
+    setCurrentView('home');
   };
 
   const handleGoogleLogin = () => {
@@ -46,6 +77,19 @@ function App() {
 
   const handleBackToLogin = () => {
     console.log('Back to login clicked');
+    setCurrentView('login');
+  };
+
+  const handleLogout = () => {
+    console.log('Logout clicked');
+    
+    // Clear user data
+    setUser(null);
+    
+    // Show toast
+    showToast('You have been logged out successfully.', 'success');
+    
+    // Navigate back to login
     setCurrentView('login');
   };
 
@@ -85,6 +129,11 @@ function App() {
     <div className="App">
       {showSplash ? (
         <SplashScreen />
+      ) : currentView === 'home' ? (
+        <Home 
+          user={user}
+          onLogout={handleLogout}
+        />
       ) : currentView === 'login' ? (
         <LoginForm
           appName="Fit Formal"
