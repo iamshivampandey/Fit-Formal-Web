@@ -4,11 +4,12 @@ import MultiStepSignup from './components/MultiStepSignup'
 import SplashScreen from './components/SplashScreen'
 import Toast from './components/Toast'
 import Home from './components/Home'
+import ProductManagement from './components/ProductManagement'
 import './App.css'
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
-  const [currentView, setCurrentView] = useState('login'); // 'login', 'signup', or 'home'
+  const [currentView, setCurrentView] = useState('login'); // 'login', 'signup', 'home', or 'products'
   const [toast, setToast] = useState(null);
   const [user, setUser] = useState(null);
 
@@ -125,6 +126,17 @@ function App() {
     alert('FAQ clicked');
   };
 
+  /**
+   * Navigation handlers
+   */
+  const handleNavigateToProducts = () => {
+    setCurrentView('products');
+  };
+
+  const handleNavigateToDashboard = () => {
+    setCurrentView('home');
+  };
+
   return (
     <div className="App">
       {showSplash ? (
@@ -133,6 +145,12 @@ function App() {
         <Home 
           user={user}
           onLogout={handleLogout}
+          onNavigateToProducts={handleNavigateToProducts}
+        />
+      ) : currentView === 'products' ? (
+        <ProductManagement
+          user={user}
+          onBackToDashboard={handleNavigateToDashboard}
         />
       ) : currentView === 'login' ? (
         <LoginForm
