@@ -40,6 +40,7 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
   ]);
 
   const [productImages, setProductImages] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({}); // Store field-level errors
 
   // Comprehensive form data matching database schema
   const [formData, setFormData] = useState({
@@ -101,19 +102,69 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+    
+    // Remove error styling and error message when user starts typing
+    if (e.target.classList.contains('error')) {
+      e.target.classList.remove('error');
+    }
+    
+    // Clear error message for this field
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
   };
 
   /**
-   * Handle image URL addition
+   * Handle image file selection from computer
+   */
+  const handleImageFileSelect = (e) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      Array.from(files).forEach((file) => {
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+          alert(`${file.name} is not a valid image file. Please select an image file (jpg, png, gif, etc.).`);
+          return;
+        }
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          alert(`${file.name} is too large. Please select an image smaller than 5MB.`);
+          return;
+        }
+
+        // Read file and convert to base64 data URL
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setProductImages(prev => [...prev, {
+            id: Date.now() + Math.random(), // Ensure unique ID
+            url: event.target.result, // Base64 data URL
+            file: file, // Keep reference to original file
+            fileName: file.name,
+            is_primary: prev.length === 0 // First image is primary by default
+          }]);
+        };
+        reader.onerror = () => {
+          alert(`Failed to read ${file.name}. Please try again.`);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+    // Reset input so the same file can be selected again
+    e.target.value = '';
+  };
+
+  /**
+   * Trigger file input click
    */
   const handleAddImage = () => {
-    const url = prompt('Enter image URL:');
-    if (url && url.trim()) {
-      setProductImages(prev => [...prev, {
-        id: Date.now(),
-        url: url.trim(),
-        is_primary: prev.length === 0 // First image is primary by default
-      }]);
+    const fileInput = document.getElementById('image-file-input');
+    if (fileInput) {
+      fileInput.click();
     }
   };
 
@@ -150,9 +201,99 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validation
-    if (!formData.title || !formData.price_mrp) {
-      alert('Please fill in required fields: Title and MRP Price');
+    // Validation - Based on database schema NOT NULL constraints
+    const errors = [];
+    
+    // Required fields from UnstitchedFabricProducts table
+    if (!formData.title || formData.title.trim() === '') {
+      errors.push('Product Title');
+    }
+    
+    // Required fields from ProductPrices table
+    if (!formData.price_mrp || parseFloat(formData.price_mrp) <= 0) {
+      errors.push('MRP Price');
+    }
+    
+    // Required fields from Product_Inventory table (NOT NULL constraint)
+    const stockQty = formData.stock_qty !== '' && formData.stock_qty !== null && formData.stock_qty !== undefined 
+      ? parseFloat(formData.stock_qty) 
+      : null;
+    if (stockQty === null || isNaN(stockQty) || stockQty < 0) {
+      errors.push('Stock Quantity');
+    }
+    
+    // Recommended mandatory fields (best practices for e-commerce)
+    if (!formData.category_id || formData.category_id === '') {
+      errors.push('Category');
+    }
+    
+    if (!productImages || productImages.length === 0) {
+      errors.push('At least one Product Image');
+    }
+    
+    if (errors.length > 0) {
+      // Set field errors for inline display
+      const newFieldErrors = {};
+      
+      errors.forEach((errorField) => {
+        let fieldName = '';
+        let errorMessage = '';
+        
+        if (errorField === 'Product Title') {
+          fieldName = 'title';
+          errorMessage = 'Please enter product title';
+        } else if (errorField === 'Category') {
+          fieldName = 'category_id';
+          errorMessage = 'Please select a category';
+        } else if (errorField === 'MRP Price') {
+          fieldName = 'price_mrp';
+          errorMessage = 'Please enter MRP price';
+        } else if (errorField === 'Stock Quantity') {
+          fieldName = 'stock_qty';
+          errorMessage = 'Please enter stock quantity';
+        } else if (errorField === 'At least one Product Image') {
+          fieldName = 'images';
+          errorMessage = 'Please add at least one product image';
+        }
+        
+        if (fieldName) {
+          newFieldErrors[fieldName] = errorMessage;
+        }
+      });
+      
+      setFieldErrors(newFieldErrors);
+      
+      // Navigate to the relevant section and add error styling
+      let targetSection = activeSection;
+      if (errors.includes('Product Title') || errors.includes('Category')) {
+        targetSection = 'basic';
+      } else if (errors.includes('MRP Price')) {
+        targetSection = 'pricing';
+      } else if (errors.includes('Stock Quantity')) {
+        targetSection = 'inventory';
+      } else if (errors.includes('At least one Product Image')) {
+        targetSection = 'images';
+      }
+      
+      setActiveSection(targetSection);
+      
+      // Add error styling to fields
+      setTimeout(() => {
+        Object.keys(newFieldErrors).forEach((fieldName, index) => {
+          if (fieldName !== 'images') {
+            const field = document.querySelector(`[name="${fieldName}"]`) || 
+                         document.querySelector(`#${fieldName}`);
+            if (field) {
+              field.classList.add('error');
+              if (index === 0) {
+                field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(() => field.focus(), 300);
+              }
+            }
+          }
+        });
+      }, 100);
+      
       return;
     }
 
@@ -163,7 +304,9 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
       top_length_value: formData.top_length_value ? parseFloat(formData.top_length_value) : null,
       price_mrp: parseFloat(formData.price_mrp),
       price_sale: formData.price_sale ? parseFloat(formData.price_sale) : null,
-      stock_qty: formData.stock_qty ? parseFloat(formData.stock_qty) : 0,
+      stock_qty: formData.stock_qty !== '' && formData.stock_qty !== null && formData.stock_qty !== undefined 
+        ? parseFloat(formData.stock_qty) 
+        : 0,
       images: productImages,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -195,6 +338,7 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
     }
 
     // Reset form
+    setFieldErrors({});
     resetForm();
     alert(editingProduct ? 'Product updated successfully!' : 'Product added successfully!');
   };
@@ -241,6 +385,7 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
     setEditingProduct(null);
     setShowAddForm(false);
     setActiveSection('basic');
+    setFieldErrors({});
   };
 
   /**
@@ -303,6 +448,155 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
     if (window.confirm('Are you sure you want to cancel? All unsaved changes will be lost.')) {
       resetForm();
     }
+  };
+
+  /**
+   * Validate mandatory fields for a specific section
+   */
+  const validateSection = (section) => {
+    const errors = [];
+    
+    switch(section) {
+      case 'basic':
+        if (!formData.title || formData.title.trim() === '') {
+          errors.push('Product Title');
+        }
+        if (!formData.category_id || formData.category_id === '') {
+          errors.push('Category');
+        }
+        break;
+        
+      case 'details':
+        // Product details section has no mandatory fields
+        break;
+        
+      case 'pricing':
+        if (!formData.price_mrp || parseFloat(formData.price_mrp) <= 0) {
+          errors.push('MRP Price');
+        }
+        break;
+        
+      case 'images':
+        if (!productImages || productImages.length === 0) {
+          errors.push('At least one Product Image');
+        }
+        break;
+        
+      case 'inventory':
+        const stockQty = formData.stock_qty !== '' && formData.stock_qty !== null && formData.stock_qty !== undefined 
+          ? parseFloat(formData.stock_qty) 
+          : null;
+        if (stockQty === null || isNaN(stockQty) || stockQty < 0) {
+          errors.push('Stock Quantity');
+        }
+        break;
+        
+      case 'compliance':
+        // Compliance section has no mandatory fields
+        break;
+        
+      default:
+        break;
+    }
+    
+    return errors;
+  };
+
+  /**
+   * Handle section navigation with validation
+   */
+  const handleSectionChange = (targetSection, direction = 'next') => {
+    // Allow going back without validation
+    if (direction === 'prev') {
+      const currentIndex = sections.indexOf(activeSection);
+      if (currentIndex > 0) {
+        // Clear errors when going back
+        setFieldErrors({});
+        setActiveSection(sections[currentIndex - 1]);
+      }
+      return;
+    }
+    
+    // Validate current section before allowing navigation forward
+    const errors = validateSection(activeSection);
+    
+    if (errors.length > 0) {
+      // Set field errors for inline display
+      const newFieldErrors = {};
+      
+      errors.forEach((errorField) => {
+        let fieldName = '';
+        let errorMessage = '';
+        
+        // Map error field names to actual form field names and messages
+        if (errorField === 'Product Title') {
+          fieldName = 'title';
+          errorMessage = 'Please enter product title';
+        } else if (errorField === 'Category') {
+          fieldName = 'category_id';
+          errorMessage = 'Please select a category';
+        } else if (errorField === 'MRP Price') {
+          fieldName = 'price_mrp';
+          errorMessage = 'Please enter MRP price';
+        } else if (errorField === 'Stock Quantity') {
+          fieldName = 'stock_qty';
+          errorMessage = 'Please enter stock quantity';
+        } else if (errorField === 'At least one Product Image') {
+          fieldName = 'images';
+          errorMessage = 'Please add at least one product image';
+        }
+        
+        if (fieldName) {
+          newFieldErrors[fieldName] = errorMessage;
+        }
+      });
+      
+      setFieldErrors(newFieldErrors);
+      
+      // Add error styling to missing fields
+      setTimeout(() => {
+        // Remove previous error classes
+        document.querySelectorAll('.pm-form-input.error, .pm-form-textarea.error').forEach(el => {
+          el.classList.remove('error');
+        });
+        
+        // Add error class to missing fields
+        Object.keys(newFieldErrors).forEach((fieldName, index) => {
+          if (fieldName === 'images') {
+            // Special handling for images section
+            const imagesSection = document.querySelector('.pm-images-section');
+            if (imagesSection) {
+              imagesSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          } else {
+            const field = document.querySelector(`[name="${fieldName}"]`) || 
+                         document.querySelector(`#${fieldName}`);
+            
+            if (field) {
+              field.classList.add('error');
+              // Scroll to first error
+              if (index === 0) {
+                field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(() => field.focus(), 300);
+              }
+            }
+          }
+        });
+      }, 100);
+      
+      return;
+    }
+    
+    // If validation passes, clear errors and allow navigation
+    setFieldErrors({});
+    setActiveSection(targetSection);
+    
+    // Remove error classes when navigating successfully
+    setTimeout(() => {
+      document.querySelectorAll('.pm-form-input.error, .pm-form-textarea.error').forEach(el => {
+        el.classList.remove('error');
+      });
+    }, 200);
   };
 
   return (
@@ -479,15 +773,45 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
 
                     {/* Section Navigation */}
                     <div className="pm-form-sections">
-                      {sections.map((section) => (
-                        <button 
-                          key={section}
-                          className={`pm-section-tab ${activeSection === section ? 'active' : ''}`}
-                          onClick={() => setActiveSection(section)}
-                        >
-                          {sectionLabels[section]}
-                        </button>
-                      ))}
+                      {sections.map((section) => {
+                        const sectionIndex = sections.indexOf(section);
+                        const currentIndex = sections.indexOf(activeSection);
+                        const currentSectionErrors = validateSection(activeSection);
+                        
+                        // Allow clicking on:
+                        // 1. Current section (always allowed)
+                        // 2. Previous sections (always allowed - can go back)
+                        // 3. Next section only if current section has no errors
+                        // 4. Future sections beyond next are disabled
+                        const isCurrentSection = sectionIndex === currentIndex;
+                        const isPreviousSection = sectionIndex < currentIndex;
+                        const isNextSection = sectionIndex === currentIndex + 1;
+                        const canNavigate = isCurrentSection || isPreviousSection || (isNextSection && currentSectionErrors.length === 0);
+                        
+                        return (
+                          <button 
+                            key={section}
+                            className={`pm-section-tab ${activeSection === section ? 'active' : ''} ${!canNavigate ? 'disabled' : ''}`}
+                            onClick={() => {
+                              if (isCurrentSection) {
+                                // Current section - just set it
+                                setActiveSection(section);
+                              } else if (isPreviousSection) {
+                                // Going back - always allowed
+                                setActiveSection(section);
+                              } else if (isNextSection) {
+                                // Going forward - validate first
+                                handleSectionChange(section, 'next');
+                              }
+                              // Future sections beyond next are disabled, so no action
+                            }}
+                            disabled={!canNavigate}
+                            title={!canNavigate ? 'Please complete all required fields in current section before proceeding' : ''}
+                          >
+                            {sectionLabels[section]}
+                          </button>
+                        );
+                      })}
                     </div>
 
               <form className="pm-form" onSubmit={handleSubmit}>
@@ -504,12 +828,22 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
                         type="text"
                         id="title"
                         name="title"
-                        className="pm-form-input"
+                        className={`pm-form-input ${fieldErrors.title ? 'error' : ''}`}
                         value={formData.title}
                         onChange={handleInputChange}
                         placeholder="e.g., Premium Cotton Shirt Fabric"
                         required
                       />
+                      {fieldErrors.title && (
+                        <div className="pm-field-error">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="8" x2="12" y2="12"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                          </svg>
+                          <span>{fieldErrors.title}</span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="pm-form-row">
@@ -530,19 +864,32 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
                       </div>
 
                       <div className="pm-form-group">
-                        <label htmlFor="category_id" className="pm-form-label">Category</label>
+                        <label htmlFor="category_id" className="pm-form-label">
+                          Category <span className="pm-required">*</span>
+                        </label>
                         <select
                           id="category_id"
                           name="category_id"
-                          className="pm-form-input"
+                          className={`pm-form-input ${fieldErrors.category_id ? 'error' : ''}`}
                           value={formData.category_id}
                           onChange={handleInputChange}
+                          required
                         >
                           <option value="">Select Category</option>
                           {categories.map(category => (
                             <option key={category.id} value={category.id}>{category.name}</option>
                           ))}
                         </select>
+                        {fieldErrors.category_id && (
+                          <div className="pm-field-error">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="12" cy="12" r="10"/>
+                              <line x1="12" y1="8" x2="12" y2="12"/>
+                              <line x1="12" y1="16" x2="12.01" y2="16"/>
+                            </svg>
+                            <span>{fieldErrors.category_id}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -821,13 +1168,16 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
                     </div>
 
                     <div className="pm-form-group">
-                      <label htmlFor="unit" className="pm-form-label">Product Unit</label>
+                      <label htmlFor="unit" className="pm-form-label">
+                        Product Unit <span className="pm-required">*</span>
+                      </label>
                       <select
                         id="unit"
                         name="unit"
                         className="pm-form-input"
                         value={formData.unit}
                         onChange={handleInputChange}
+                        required
                       >
                         <option value="meter">Meter</option>
                         <option value="piece">Piece</option>
@@ -866,7 +1216,7 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
                           type="number"
                           id="price_mrp"
                           name="price_mrp"
-                          className="pm-form-input"
+                          className={`pm-form-input ${fieldErrors.price_mrp ? 'error' : ''}`}
                           value={formData.price_mrp}
                           onChange={handleInputChange}
                           placeholder="0.00"
@@ -874,6 +1224,16 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
                           min="0"
                           required
                         />
+                        {fieldErrors.price_mrp && (
+                          <div className="pm-field-error">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="12" cy="12" r="10"/>
+                              <line x1="12" y1="8" x2="12" y2="12"/>
+                              <line x1="12" y1="16" x2="12.01" y2="16"/>
+                            </svg>
+                            <span>{fieldErrors.price_mrp}</span>
+                          </div>
+                        )}
                       </div>
 
                       <div className="pm-form-group">
@@ -902,23 +1262,44 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
                 {/* Images Section */}
                 {activeSection === 'images' && (
                   <div className="pm-form-content">
-                    <h3 className="pm-section-title">Product Images</h3>
+                    <h3 className="pm-section-title">
+                      Product Images <span className="pm-required" style={{fontSize: '0.9rem'}}>*</span>
+                    </h3>
                     
-                    <div className="pm-images-section">
+                    <div className={`pm-images-section ${fieldErrors.images ? 'has-error' : ''}`}>
+                      <input
+                        type="file"
+                        id="image-file-input"
+                        accept="image/*"
+                        multiple
+                        style={{ display: 'none' }}
+                        onChange={handleImageFileSelect}
+                      />
                       <button
                         type="button"
                         className="pm-add-image-btn"
                         onClick={handleAddImage}
                       >
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <line x1="12" y1="5" x2="12" y2="19"/>
-                          <line x1="5" y1="12" x2="19" y2="12"/>
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                          <polyline points="17 8 12 3 7 8"/>
+                          <line x1="12" y1="3" x2="12" y2="15"/>
                         </svg>
-                        Add Image URL
+                        Upload Images
                       </button>
+                      <p className="pm-image-upload-hint">
+                        You can select multiple images at once (JPG, PNG, GIF, etc. Max 5MB per image)
+                      </p>
 
-                      {productImages.length === 0 && (
-                        <p className="pm-images-empty">No images added. Add at least one image.</p>
+                      {fieldErrors.images && (
+                        <div className="pm-field-error">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="8" x2="12" y2="12"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                          </svg>
+                          <span>{fieldErrors.images}</span>
+                        </div>
                       )}
 
                       <div className="pm-images-grid">
@@ -967,19 +1348,32 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
                     <h3 className="pm-section-title">Inventory Management</h3>
                     
                     <div className="pm-form-group">
-                      <label htmlFor="stock_qty" className="pm-form-label">Stock Quantity</label>
+                      <label htmlFor="stock_qty" className="pm-form-label">
+                        Stock Quantity <span className="pm-required">*</span>
+                      </label>
                       <input
                         type="number"
                         id="stock_qty"
                         name="stock_qty"
-                        className="pm-form-input"
+                        className={`pm-form-input ${fieldErrors.stock_qty ? 'error' : ''}`}
                         value={formData.stock_qty}
                         onChange={handleInputChange}
                         placeholder="0.00"
                         step="0.01"
                         min="0"
+                        required
                       />
                       <span className="pm-input-hint">Unit: {formData.unit || 'meter'}</span>
+                      {fieldErrors.stock_qty && (
+                        <div className="pm-field-error">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="8" x2="12" y2="12"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                          </svg>
+                          <span>{fieldErrors.stock_qty}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1079,12 +1473,7 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
                           <button 
                             type="button" 
                             className="pm-form-btn secondary"
-                            onClick={() => {
-                              const currentIndex = sections.indexOf(activeSection);
-                              if (currentIndex > 0) {
-                                setActiveSection(sections[currentIndex - 1]);
-                              }
-                            }}
+                            onClick={() => handleSectionChange(sections[sections.indexOf(activeSection) - 1], 'prev')}
                           >
                             ← Previous
                           </button>
@@ -1096,7 +1485,7 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
                             onClick={() => {
                               const currentIndex = sections.indexOf(activeSection);
                               if (currentIndex < sections.length - 1) {
-                                setActiveSection(sections[currentIndex + 1]);
+                                handleSectionChange(sections[currentIndex + 1], 'next');
                               }
                             }}
                           >

@@ -8,10 +8,34 @@ import ProductManagement from './components/ProductManagement'
 import './App.css'
 
 function App() {
+  // Initialize state from localStorage to persist across page refreshes
   const [showSplash, setShowSplash] = useState(true);
-  const [currentView, setCurrentView] = useState('login'); // 'login', 'signup', 'home', or 'products'
+  const [currentView, setCurrentView] = useState(() => {
+    // Check if user is logged in from localStorage
+    const savedUser = localStorage.getItem('user');
+    const savedView = localStorage.getItem('currentView');
+    
+    if (savedUser && savedView && savedView !== 'login' && savedView !== 'signup') {
+      return savedView; // Restore last view if user was logged in
+    }
+    return 'login';
+  });
   const [toast, setToast] = useState(null);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    // Restore user from localStorage on mount
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      try {
+        return JSON.parse(savedUser);
+      } catch (e) {
+        console.error('Error parsing saved user:', e);
+        localStorage.removeItem('user');
+        localStorage.removeItem('currentView');
+        return null;
+      }
+    }
+    return null;
+  });
 
   useEffect(() => {
     // Show splash screen for 1 second, then show login form
@@ -22,6 +46,23 @@ function App() {
     // Cleanup timer on component unmount
     return () => clearTimeout(timer);
   }, []);
+
+  // Save user to localStorage whenever it changes
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('user');
+      localStorage.removeItem('currentView');
+    }
+  }, [user]);
+
+  // Save currentView to localStorage whenever it changes (except for login/signup)
+  useEffect(() => {
+    if (user && currentView !== 'login' && currentView !== 'signup') {
+      localStorage.setItem('currentView', currentView);
+    }
+  }, [currentView, user]);
 
   // Example handlers for the LoginForm component
   const handleLogin = (response) => {
@@ -84,7 +125,11 @@ function App() {
   const handleLogout = () => {
     console.log('Logout clicked');
     
-    // Clear user data
+    // Clear user data from localStorage
+    localStorage.removeItem('user');
+    localStorage.removeItem('currentView');
+    
+    // Clear user data from state
     setUser(null);
     
     // Show toast
@@ -137,22 +182,25 @@ function App() {
     setCurrentView('home');
   };
 
+  // If user is not logged in, force login view (unless on signup)
+  const viewToRender = !user && currentView !== 'signup' ? 'login' : currentView;
+
   return (
     <div className="App">
       {showSplash ? (
         <SplashScreen />
-      ) : currentView === 'home' ? (
+      ) : viewToRender === 'home' ? (
         <Home 
           user={user}
           onLogout={handleLogout}
           onNavigateToProducts={handleNavigateToProducts}
         />
-      ) : currentView === 'products' ? (
+      ) : viewToRender === 'products' ? (
         <ProductManagement
           user={user}
           onBackToDashboard={handleNavigateToDashboard}
         />
-      ) : currentView === 'login' ? (
+      ) : viewToRender === 'login' ? (
         <LoginForm
           appName="Fit Formal"
           onLogin={handleLogin}
