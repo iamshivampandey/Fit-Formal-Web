@@ -265,12 +265,12 @@
   right: 1rem;
   display: flex;
   gap: 0.5rem;
-  opacity: 0;
-  transition: opacity 0.2s ease;
+  opacity: 1;
+  transition: all 0.2s ease;
 }
 
 .pm-product-card:hover .pm-product-actions {
-  opacity: 1;
+  transform: scale(1.05);
 }
 
 .pm-action-btn {
@@ -283,6 +283,17 @@
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  padding: 0;
+}
+
+.pm-action-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .pm-action-btn.edit {

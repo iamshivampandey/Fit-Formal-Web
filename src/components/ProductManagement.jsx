@@ -428,8 +428,18 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
       console.log('📦 Sending product data to API...');
       console.log('👤 User ID:', user?.id);
       
-      const response = await fetch('/api/products', {
-        method: 'POST',
+      // Determine if we're editing or creating
+      const isEditing = editingProduct && editingProduct.id;
+      const url = isEditing ? `/api/products/${editingProduct.id}` : '/api/products';
+      const method = isEditing ? 'PUT' : 'POST';
+      
+      console.log(`🔄 ${isEditing ? 'Updating' : 'Creating'} product...`);
+      if (isEditing) {
+        console.log('📝 Editing Product ID:', editingProduct.id);
+      }
+      
+      const response = await fetch(url, {
+        method: method,
         body: formDataToSend
       });
       
@@ -452,21 +462,29 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
             if (err.msg) return err.msg;
             return JSON.stringify(err);
           }).join('\n');
-          setApiError(errorMessages || data.message || 'Failed to add product. Please check your input.');
+          setApiError(errorMessages || data.message || `Failed to ${isEditing ? 'update' : 'add'} product. Please check your input.`);
         } else {
-          setApiError(data.message || 'Failed to add product. Please try again.');
+          setApiError(data.message || `Failed to ${isEditing ? 'update' : 'add'} product. Please try again.`);
         }
         setIsSubmitting(false);
         return;
       }
       
-      // Success - add product to local state if needed
-      if (data && data.id) {
-        setProducts(prev => [...prev, {
-          id: data.id,
-          ...formData,
-          images: productImages
-        }]);
+      // Success - update or add product to local state if needed
+      if (isEditing) {
+        // Update existing product in local state
+        setProducts(prev => prev.map(p => 
+          p.id === editingProduct.id ? { ...p, ...formData, images: productImages } : p
+        ));
+      } else {
+        // Add new product to local state
+        if (data && data.id) {
+          setProducts(prev => [...prev, {
+            id: data.id,
+            ...formData,
+            images: productImages
+          }]);
+        }
       }
       
       // Refresh list and show products
@@ -475,7 +493,7 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
       setFieldErrors({});
       resetForm();
       setShowAddForm(false);
-      alert('Product added successfully!');
+      alert(isEditing ? 'Product updated successfully!' : 'Product added successfully!');
       
     } catch (error) {
       console.error('❌ Product submission error:', error);
