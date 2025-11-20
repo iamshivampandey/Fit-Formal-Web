@@ -22,22 +22,15 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
     compliance: 'Compliance'
   };
   
-  // Brands and Categories - In real app, these would come from API
-  const [brands] = useState([
-    { id: 1, name: 'Raymond' },
-    { id: 2, name: 'Arrow' },
-    { id: 3, name: 'Park Avenue' },
-    { id: 4, name: 'Allen Solly' },
-    { id: 5, name: 'Van Heusen' }
-  ]);
+  // Dynamic data from API
+  const [brands, setBrands] = useState([]);
+  const [isLoadingBrands, setIsLoadingBrands] = useState(false);
+  
+  const [categories, setCategories] = useState([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
 
-  const [categories] = useState([
-    { id: 1, name: 'Shirt Fabric' },
-    { id: 2, name: 'Suiting' },
-    { id: 3, name: 'Trouser Fabric' },
-    { id: 4, name: 'Formal Wear' },
-    { id: 5, name: 'Casual Wear' }
-  ]);
+  const [productTypes, setProductTypes] = useState([]);
+  const [isLoadingProductTypes, setIsLoadingProductTypes] = useState(false);
 
   const [productImages, setProductImages] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({}); // Store field-level errors
@@ -48,6 +41,19 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageLimit, setPageLimit] = useState(20);
   const [isActiveFilter, setIsActiveFilter] = useState(undefined); // undefined | true | false
+  
+  // Product Detail View States
+  const [viewingProduct, setViewingProduct] = useState(null);
+  const [isLoadingProductDetail, setIsLoadingProductDetail] = useState(false);
+  const [productDetailError, setProductDetailError] = useState('');
+  
+  // Delete State
+  const [deletingProductId, setDeletingProductId] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
+  
+  // Toast Notification State
+  const [toast, setToast] = useState({ show: false, message: '', type: '' }); // type: 'success' | 'error'
 
   // Comprehensive form data matching database schema
   const [formData, setFormData] = useState({
@@ -493,7 +499,7 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
       setFieldErrors({});
       resetForm();
       setShowAddForm(false);
-      alert(isEditing ? 'Product updated successfully!' : 'Product added successfully!');
+      showToast(isEditing ? 'Product updated successfully!' : 'Product added successfully!', 'success');
       
     } catch (error) {
       console.error('❌ Product submission error:', error);
@@ -591,15 +597,95 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
     setProductImages(product.images || []);
     setShowAddForm(true);
     setActiveSection('basic');
+    // Fetch dropdown data when opening edit form
+    fetchProductTypes();
+    fetchBrands();
+    fetchCategories();
   };
 
   /**
    * Delete a product
    */
-  const handleDelete = (productId) => {
-    if (window.confirm('Are you sure you want to delete this product?')) {
+  /**
+   * Open delete confirmation modal
+   */
+  const handleDeleteClick = (product) => {
+    setProductToDelete(product);
+    setShowDeleteModal(true);
+  };
+
+  /**
+   * Confirm and execute delete
+   */
+  const handleDeleteConfirm = async () => {
+    if (!productToDelete) return;
+
+    const productId = typeof productToDelete === 'object' ? productToDelete.id : productToDelete;
+    setDeletingProductId(productId);
+    setShowDeleteModal(false);
+
+    try {
+      console.log('🗑️ Deleting product:', productId);
+      
+      const response = await fetch(`/api/products/${productId}`, {
+        method: 'DELETE'
+      });
+      
+      console.log('📡 Delete response status:', response.status);
+      
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const data = await response.json();
+        console.log('📦 Delete response:', data);
+        
+        if (!response.ok) {
+          const message = data?.message || 'Failed to delete product.';
+          throw new Error(message);
+        }
+      } else if (!response.ok) {
+        throw new Error('Failed to delete product.');
+      }
+      
+      // Remove from local state
       setProducts(prev => prev.filter(product => product.id !== productId));
+      
+      console.log('✅ Product deleted successfully');
+      showToast('Product deleted successfully!', 'success');
+      
+      // Close detail view if viewing deleted product
+      if (viewingProduct && viewingProduct.id === productId) {
+        setViewingProduct(null);
+      }
+      
+      // Refresh the list from server
+      await fetchProducts({ page: currentPage, limit: pageLimit, is_active: isActiveFilter });
+      
+    } catch (error) {
+      console.error('❌ Error deleting product:', error);
+      showToast(`Failed to delete product: ${error.message}`, 'error');
+    } finally {
+      setDeletingProductId(null);
+      setProductToDelete(null);
     }
+  };
+
+  /**
+   * Cancel delete
+   */
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setProductToDelete(null);
+  };
+
+  /**
+   * Show toast notification
+   */
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    // Auto-dismiss after 3 seconds
+    setTimeout(() => {
+      setToast({ show: false, message: '', type: '' });
+    }, 3000);
   };
 
   /**
@@ -661,6 +747,250 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
     }
     
     return errors;
+  };
+
+  /**
+   * Fetch product types from API
+   */
+  const fetchProductTypes = async () => {
+    setIsLoadingProductTypes(true);
+    try {
+      const response = await fetch('/api/products/getAllProductTypes', {
+        method: 'GET'
+      });
+      
+      console.log('📡 Product Types Response status:', response.status);
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server error: Product types API not available.');
+      }
+      
+      const data = await response.json();
+      console.log('📦 Product Types Response:', data);
+      
+      if (!response.ok) {
+        const message = data?.message || 'Failed to fetch product types.';
+        throw new Error(message);
+      }
+      
+      // Handle different API response structures
+      let types = [];
+      
+      console.log('🔍 Checking response structure...');
+      console.log('🔍 data keys:', Object.keys(data));
+      if (data?.data) {
+        console.log('🔍 data.data keys:', Object.keys(data.data));
+      }
+      
+      if (Array.isArray(data)) {
+        types = data;
+        console.log('✅ Direct array detected');
+      } else if (data?.data?.productTypes && Array.isArray(data.data.productTypes)) {
+        // Response structure: { data: { productTypes: [...], count: N } }
+        types = data.data.productTypes;
+        console.log('✅ Nested in data.productTypes property');
+      } else if (data?.data?.product_types && Array.isArray(data.data.product_types)) {
+        // Response structure with snake_case: { data: { product_types: [...], count: N } }
+        types = data.data.product_types;
+        console.log('✅ Nested in data.product_types property');
+      } else if (data?.data?.types && Array.isArray(data.data.types)) {
+        // Response structure: { data: { types: [...], count: N } }
+        types = data.data.types;
+        console.log('✅ Nested in data.types property');
+      } else if (data?.data && Array.isArray(data.data)) {
+        types = data.data;
+        console.log('✅ Nested in data property (direct array)');
+      } else if (data?.productTypes && Array.isArray(data.productTypes)) {
+        types = data.productTypes;
+        console.log('✅ Nested in productTypes property');
+      } else if (data?.product_types && Array.isArray(data.product_types)) {
+        types = data.product_types;
+        console.log('✅ Nested in product_types property');
+      } else if (data?.types && Array.isArray(data.types)) {
+        types = data.types;
+        console.log('✅ Nested in types property');
+      } else {
+        console.log('⚠️ Unknown response structure:', data);
+        console.log('⚠️ Available properties:', Object.keys(data));
+      }
+      
+      // Filter out any objects that don't have required properties
+      types = types.filter(item => {
+        if (!item) return false;
+        // If it's a string, keep it
+        if (typeof item === 'string') return true;
+        // If it's an object, check for various property name formats
+        if (typeof item === 'object') {
+          // Check for lowercase: {id, name} or {id, type}
+          if ((item.id || item.id === 0) && (item.name || item.type)) return true;
+          // Check for PascalCase: {ProductTypeId, ProductType}
+          if ((item.ProductTypeId || item.ProductTypeId === 0) && item.ProductType) return true;
+          // Check for other variations
+          if ((item.product_type_id || item.product_type_id === 0) && item.product_type) return true;
+        }
+        // Filter out objects like {count: 6}
+        return false;
+      });
+      
+      console.log('✅ Product Types parsed:', types);
+      console.log('✅ Product Types count:', types.length);
+      setProductTypes(types);
+      console.log('✅ Product Types state set');
+      
+    } catch (error) {
+      console.error('❌ Error fetching product types:', error);
+      // Use fallback values if API fails
+      setProductTypes([
+        'Shirt Fabric',
+        'Suiting',
+        'Trouser Fabric',
+        'Formal Wear',
+        'Casual Wear'
+      ]);
+    } finally {
+      setIsLoadingProductTypes(false);
+    }
+  };
+
+  /**
+   * Fetch brands from API
+   */
+  const fetchBrands = async () => {
+    setIsLoadingBrands(true);
+    try {
+      const response = await fetch('/api/products/getAllBrands', {
+        method: 'GET'
+      });
+      
+      console.log('📡 Brands Response status:', response.status);
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server error: Brands API not available.');
+      }
+      
+      const data = await response.json();
+      console.log('📦 Brands Response:', data);
+      
+      if (!response.ok) {
+        const message = data?.message || 'Failed to fetch brands.';
+        throw new Error(message);
+      }
+      
+      // Handle different API response structures
+      let brandsList = [];
+      if (Array.isArray(data)) {
+        brandsList = data;
+        console.log('✅ Direct array detected');
+      } else if (data?.data?.brands && Array.isArray(data.data.brands)) {
+        // Response structure: { data: { brands: [...], count: N } }
+        brandsList = data.data.brands;
+        console.log('✅ Nested in data.brands property');
+      } else if (data?.data && Array.isArray(data.data)) {
+        brandsList = data.data;
+        console.log('✅ Nested in data property');
+      } else if (data?.brands && Array.isArray(data.brands)) {
+        brandsList = data.brands;
+        console.log('✅ Nested in brands property');
+      } else {
+        console.log('⚠️ Unknown response structure:', data);
+      }
+      
+      // Filter out any non-brand objects (like count objects)
+      brandsList = brandsList.filter(item => {
+        if (!item) return false;
+        // Check for lowercase: {id, name}
+        if ((item.id || item.id === 0) && item.name) return true;
+        // Check for PascalCase: {BrandId, BrandName} or {BrandId, Brand}
+        if ((item.BrandId || item.BrandId === 0) && (item.BrandName || item.Brand)) return true;
+        // Check for snake_case
+        if ((item.brand_id || item.brand_id === 0) && item.brand_name) return true;
+        return false;
+      });
+      
+      console.log('✅ Brands parsed:', brandsList);
+      console.log('✅ Brands count:', brandsList.length);
+      setBrands(brandsList);
+      console.log('✅ Brands state set');
+      
+    } catch (error) {
+      console.error('❌ Error fetching brands:', error);
+      // Use empty array or fallback values if API fails
+      setBrands([]);
+    } finally {
+      setIsLoadingBrands(false);
+    }
+  };
+
+  /**
+   * Fetch categories from API
+   */
+  const fetchCategories = async () => {
+    setIsLoadingCategories(true);
+    try {
+      const response = await fetch('/api/products/getAllCategories', {
+        method: 'GET'
+      });
+      
+      console.log('📡 Categories Response status:', response.status);
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server error: Categories API not available.');
+      }
+      
+      const data = await response.json();
+      console.log('📦 Categories Response:', data);
+      
+      if (!response.ok) {
+        const message = data?.message || 'Failed to fetch categories.';
+        throw new Error(message);
+      }
+      
+      // Handle different API response structures
+      let categoriesList = [];
+      if (Array.isArray(data)) {
+        categoriesList = data;
+        console.log('✅ Direct array detected');
+      } else if (data?.data?.categories && Array.isArray(data.data.categories)) {
+        // Response structure: { data: { categories: [...], count: N } }
+        categoriesList = data.data.categories;
+        console.log('✅ Nested in data.categories property');
+      } else if (data?.data && Array.isArray(data.data)) {
+        categoriesList = data.data;
+        console.log('✅ Nested in data property');
+      } else if (data?.categories && Array.isArray(data.categories)) {
+        categoriesList = data.categories;
+        console.log('✅ Nested in categories property');
+      } else {
+        console.log('⚠️ Unknown response structure:', data);
+      }
+      
+      // Filter out any non-category objects (like count objects)
+      categoriesList = categoriesList.filter(item => {
+        if (!item) return false;
+        // Check for lowercase: {id, name}
+        if ((item.id || item.id === 0) && item.name) return true;
+        // Check for PascalCase: {CategoryId, CategoryName} or {CategoryId, Category}
+        if ((item.CategoryId || item.CategoryId === 0) && (item.CategoryName || item.Category)) return true;
+        // Check for snake_case
+        if ((item.category_id || item.category_id === 0) && item.category_name) return true;
+        return false;
+      });
+      
+      console.log('✅ Categories parsed:', categoriesList);
+      console.log('✅ Categories count:', categoriesList.length);
+      setCategories(categoriesList);
+      console.log('✅ Categories state set');
+      
+    } catch (error) {
+      console.error('❌ Error fetching categories:', error);
+      // Use empty array or fallback values if API fails
+      setCategories([]);
+    } finally {
+      setIsLoadingCategories(false);
+    }
   };
 
   /**
@@ -733,6 +1063,74 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
     } finally {
       setIsLoadingProducts(false);
     }
+  };
+
+  /**
+   * Fetch single product detail by ID
+   */
+  const fetchProductDetail = async (productId) => {
+    setIsLoadingProductDetail(true);
+    setProductDetailError('');
+    try {
+      const url = `/api/products/${productId}`;
+      
+      console.log('🔍 Fetching product detail from:', url);
+      
+      const response = await fetch(url, { method: 'GET' });
+      
+      console.log('📡 Response status:', response.status);
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server error: product API not available.');
+      }
+      
+      const data = await response.json();
+      
+      console.log('📦 Product detail response:', data);
+      
+      if (!response.ok) {
+        const message = data?.message || 'Failed to fetch product details.';
+        throw new Error(message);
+      }
+      
+      // Handle different response structures
+      let productData = null;
+      if (data?.data?.product) {
+        productData = data.data.product;
+      } else if (data?.data) {
+        productData = data.data;
+      } else if (data?.product) {
+        productData = data.product;
+      } else {
+        productData = data;
+      }
+      
+      console.log('✅ Product detail:', productData);
+      
+      setViewingProduct(productData);
+    } catch (error) {
+      console.error('❌ Error fetching product detail:', error);
+      setProductDetailError(error.message || 'Unable to load product details.');
+    } finally {
+      setIsLoadingProductDetail(false);
+    }
+  };
+
+  /**
+   * Handle viewing a product detail
+   */
+  const handleViewProduct = (product) => {
+    console.log('👁️ Viewing product:', product.id);
+    fetchProductDetail(product.id);
+  };
+
+  /**
+   * Close product detail view
+   */
+  const handleCloseProductDetail = () => {
+    setViewingProduct(null);
+    setProductDetailError('');
   };
 
   // Load products on mount
@@ -858,6 +1256,10 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
               onClick={() => {
                 resetForm();
                 setShowAddForm(true);
+                // Fetch dropdown data when opening add form
+                fetchProductTypes();
+                fetchBrands();
+                fetchCategories();
               }}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -873,8 +1275,238 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
       {/* Main Content */}
       <main className="pm-main">
         <div className="pm-content-wrapper">
+          {/* Product Detail View */}
+          {viewingProduct && !showAddForm && (
+            <div className="pm-product-detail">
+              <div className="pm-detail-header">
+                <button className="pm-back-btn" onClick={handleCloseProductDetail}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 18 9 12 15 6"/>
+                  </svg>
+                  Back to Products
+                </button>
+              </div>
+
+              {isLoadingProductDetail ? (
+                <div className="pm-empty-state">
+                  <h3>Loading product details...</h3>
+                  <p>Please wait...</p>
+                </div>
+              ) : productDetailError ? (
+                <div className="pm-form-content" style={{padding: '2rem'}}>
+                  <div className="pm-api-error">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/>
+                      <line x1="12" y1="8" x2="12" y2="12"/>
+                      <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <div>
+                      <strong>Couldn't load product details</strong>
+                      <p>{productDetailError}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="pm-detail-content">
+                  {/* Product Images Gallery */}
+                  <div className="pm-detail-images">
+                    <div className="pm-detail-main-image">
+                      {viewingProduct.primary_image ? (
+                        <img src={viewingProduct.primary_image} alt={viewingProduct.title} />
+                      ) : viewingProduct.images && viewingProduct.images.length > 0 ? (
+                        <img src={viewingProduct.images.find(img => img.is_primary)?.url || viewingProduct.images[0].url} alt={viewingProduct.title} />
+                      ) : (
+                        <div className="pm-detail-placeholder">
+                          <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                          </svg>
+                          <p>No Image</p>
+                        </div>
+                      )}
+                    </div>
+                    {viewingProduct.images && viewingProduct.images.length > 1 && (
+                      <div className="pm-detail-thumbnails">
+                        {viewingProduct.images.map((img, index) => (
+                          <div key={index} className="pm-detail-thumbnail">
+                            <img src={img.url} alt={`${viewingProduct.title} ${index + 1}`} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Product Info */}
+                  <div className="pm-detail-info">
+                    <h1 className="pm-detail-title">{viewingProduct.title}</h1>
+                    
+                    <div className="pm-detail-meta">
+                      <span className="pm-detail-brand">
+                        {viewingProduct.brand?.name || brands.find(b => b.id == viewingProduct.brand_id)?.name || 'No Brand'}
+                      </span>
+                      <span className="pm-detail-separator">•</span>
+                      <span className="pm-detail-category">
+                        {viewingProduct.category?.name || categories.find(c => c.id == viewingProduct.category_id)?.name || 'No Category'}
+                      </span>
+                    </div>
+
+                    <div className="pm-detail-price">
+                      <span className="pm-detail-price-mrp">₹{viewingProduct.price?.price_mrp || viewingProduct.price_mrp}</span>
+                      {(viewingProduct.price?.price_sale || viewingProduct.price_sale) && (
+                        <span className="pm-detail-price-sale">₹{viewingProduct.price?.price_sale || viewingProduct.price_sale}</span>
+                      )}
+                    </div>
+
+                    <div className="pm-detail-stock">
+                      <strong>Stock:</strong> {viewingProduct.stock_qty || 0} {viewingProduct.unit || 'meter'}
+                    </div>
+
+                    {viewingProduct.short_description && (
+                      <div className="pm-detail-description">
+                        <h3>Description</h3>
+                        <p>{viewingProduct.short_description}</p>
+                      </div>
+                    )}
+
+                    {viewingProduct.long_description && (
+                      <div className="pm-detail-description">
+                        <h3>Detailed Description</h3>
+                        <p>{viewingProduct.long_description}</p>
+                      </div>
+                    )}
+
+                    {/* Product Specifications */}
+                    <div className="pm-detail-specs">
+                      <h3>Specifications</h3>
+                      <div className="pm-detail-specs-grid">
+                        {viewingProduct.sku && (
+                          <div className="pm-detail-spec-item">
+                            <span className="pm-spec-label">SKU:</span>
+                            <span className="pm-spec-value">{viewingProduct.sku}</span>
+                          </div>
+                        )}
+                        {viewingProduct.style_code && (
+                          <div className="pm-detail-spec-item">
+                            <span className="pm-spec-label">Style Code:</span>
+                            <span className="pm-spec-value">{viewingProduct.style_code}</span>
+                          </div>
+                        )}
+                        {viewingProduct.model_name && (
+                          <div className="pm-detail-spec-item">
+                            <span className="pm-spec-label">Model:</span>
+                            <span className="pm-spec-value">{viewingProduct.model_name}</span>
+                          </div>
+                        )}
+                        {viewingProduct.product_type && (
+                          <div className="pm-detail-spec-item">
+                            <span className="pm-spec-label">Type:</span>
+                            <span className="pm-spec-value">{viewingProduct.product_type}</span>
+                          </div>
+                        )}
+                        {viewingProduct.color && (
+                          <div className="pm-detail-spec-item">
+                            <span className="pm-spec-label">Color:</span>
+                            <span className="pm-spec-value">{viewingProduct.color}</span>
+                          </div>
+                        )}
+                        {viewingProduct.fabric && (
+                          <div className="pm-detail-spec-item">
+                            <span className="pm-spec-label">Fabric:</span>
+                            <span className="pm-spec-value">{viewingProduct.fabric}</span>
+                          </div>
+                        )}
+                        {viewingProduct.fabric_purity && (
+                          <div className="pm-detail-spec-item">
+                            <span className="pm-spec-label">Fabric Purity:</span>
+                            <span className="pm-spec-value">{viewingProduct.fabric_purity}</span>
+                          </div>
+                        )}
+                        {viewingProduct.pattern && (
+                          <div className="pm-detail-spec-item">
+                            <span className="pm-spec-label">Pattern:</span>
+                            <span className="pm-spec-value">{viewingProduct.pattern}</span>
+                          </div>
+                        )}
+                        {viewingProduct.ideal_for && (
+                          <div className="pm-detail-spec-item">
+                            <span className="pm-spec-label">Ideal For:</span>
+                            <span className="pm-spec-value">{viewingProduct.ideal_for}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Compliance Information */}
+                    {(viewingProduct.compliance || viewingProduct.country_of_origin) && (
+                      <div className="pm-detail-compliance">
+                        <h3>Compliance Information</h3>
+                        <div className="pm-detail-specs-grid">
+                          {(viewingProduct.compliance?.country_of_origin || viewingProduct.country_of_origin) && (
+                            <div className="pm-detail-spec-item">
+                              <span className="pm-spec-label">Country of Origin:</span>
+                              <span className="pm-spec-value">{viewingProduct.compliance?.country_of_origin || viewingProduct.country_of_origin}</span>
+                            </div>
+                          )}
+                          {(viewingProduct.compliance?.manufacturer_details || viewingProduct.manufacturer_details) && (
+                            <div className="pm-detail-spec-item">
+                              <span className="pm-spec-label">Manufacturer:</span>
+                              <span className="pm-spec-value">{viewingProduct.compliance?.manufacturer_details || viewingProduct.manufacturer_details}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="pm-detail-actions">
+                      <button 
+                        className="pm-detail-btn edit"
+                        onClick={() => {
+                          handleEdit(viewingProduct);
+                          setViewingProduct(null);
+                        }}
+                      >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                        Edit Product
+                      </button>
+                      <button 
+                        className="pm-detail-btn delete"
+                        onClick={() => handleDeleteClick(viewingProduct)}
+                        disabled={deletingProductId === viewingProduct.id}
+                      >
+                        {deletingProductId === viewingProduct.id ? (
+                          <>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="pm-spinner">
+                              <circle cx="12" cy="12" r="10" opacity="0.25"/>
+                              <path d="M12 2a10 10 0 0 1 10 10" opacity="0.75"/>
+                            </svg>
+                            Deleting...
+                          </>
+                        ) : (
+                          <>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6"/>
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                              <line x1="10" y1="11" x2="10" y2="17"/>
+                              <line x1="14" y1="11" x2="14" y2="17"/>
+                            </svg>
+                            Delete Product
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Product List */}
-          {!showAddForm && (
+          {!showAddForm && !viewingProduct && (
             <div className="pm-products-section">
               {isLoadingProducts ? (
                 <div className="pm-empty-state">
@@ -922,6 +1554,10 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
                     onClick={() => {
                       resetForm();
                       setShowAddForm(true);
+                      // Fetch dropdown data when opening add form
+                      fetchProductTypes();
+                      fetchBrands();
+                      fetchCategories();
                     }}
                   >
                     Add Your First Product
@@ -930,7 +1566,11 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
               ) : (
                 <div className="pm-products-grid">
                   {products.map((product) => (
-                    <div key={product.id} className="pm-product-card">
+                    <div 
+                      key={product.id} 
+                      className="pm-product-card"
+                      onClick={() => handleViewProduct(product)}
+                    >
                       <div className="pm-product-image">
                         {product.primary_image ? (
                           <img src={product.primary_image} alt={product.title} />
@@ -966,7 +1606,10 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
                       <div className="pm-product-actions">
                         <button 
                           className="pm-action-btn edit"
-                          onClick={() => handleEdit(product)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(product);
+                          }}
                           title="Edit Product"
                         >
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -976,15 +1619,30 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
                         </button>
                         <button 
                           className="pm-action-btn delete"
-                          onClick={() => handleDelete(product.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteClick(product);
+                          }}
                           title="Delete Product"
+                          disabled={deletingProductId === product.id}
+                          style={{
+                            opacity: deletingProductId === product.id ? 0.6 : 1,
+                            cursor: deletingProductId === product.id ? 'not-allowed' : 'pointer'
+                          }}
                         >
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="3 6 5 6 21 6"/>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                            <line x1="10" y1="11" x2="10" y2="17"/>
-                            <line x1="14" y1="11" x2="14" y2="17"/>
-                          </svg>
+                          {deletingProductId === product.id ? (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="pm-spinner">
+                              <circle cx="12" cy="12" r="10" opacity="0.25"/>
+                              <path d="M12 2a10 10 0 0 1 10 10" opacity="0.75"/>
+                            </svg>
+                          ) : (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6"/>
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                              <line x1="10" y1="11" x2="10" y2="17"/>
+                              <line x1="14" y1="11" x2="14" y2="17"/>
+                            </svg>
+                          )}
                         </button>
                       </div>
                     </div>
@@ -1127,11 +1785,22 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
                           className="pm-form-input"
                           value={formData.brand_id}
                           onChange={handleInputChange}
+                          disabled={isLoadingBrands}
                         >
-                          <option value="">Select Brand</option>
-                          {brands.map(brand => (
-                            <option key={brand.id} value={brand.id}>{brand.name}</option>
-                          ))}
+                          <option value="">
+                            {isLoadingBrands ? 'Loading...' : 'Select Brand'}
+                          </option>
+                          {brands && brands.length > 0 ? (
+                            brands.map((brand, index) => {
+                              const brandId = brand.BrandId || brand.id || brand.brand_id || index;
+                              const brandName = brand.BrandName || brand.Brand || brand.name || brand.brand_name;
+                              return (
+                                <option key={brandId} value={brandId}>{brandName}</option>
+                              );
+                            })
+                          ) : !isLoadingBrands && (
+                            <option value="" disabled>No brands available</option>
+                          )}
                         </select>
                       </div>
 
@@ -1145,12 +1814,23 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
                           className={`pm-form-input ${fieldErrors.category_id ? 'error' : ''}`}
                           value={formData.category_id}
                           onChange={handleInputChange}
+                          disabled={isLoadingCategories}
                           required
                         >
-                          <option value="">Select Category</option>
-                          {categories.map(category => (
-                            <option key={category.id} value={category.id}>{category.name}</option>
-                          ))}
+                          <option value="">
+                            {isLoadingCategories ? 'Loading...' : 'Select Category'}
+                          </option>
+                          {categories && categories.length > 0 ? (
+                            categories.map((category, index) => {
+                              const categoryId = category.CategoryId || category.id || category.category_id || index;
+                              const categoryName = category.CategoryName || category.Category || category.name || category.category_name;
+                              return (
+                                <option key={categoryId} value={categoryId}>{categoryName}</option>
+                              );
+                            })
+                          ) : !isLoadingCategories && (
+                            <option value="" disabled>No categories available</option>
+                          )}
                         </select>
                         {fieldErrors.category_id && (
                           <div className="pm-field-error">
@@ -1274,13 +1954,37 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
                         className="pm-form-input"
                         value={formData.product_type}
                         onChange={handleInputChange}
+                        disabled={isLoadingProductTypes}
                       >
-                        <option value="">Select Type</option>
-                        <option value="Shirt Fabric">Shirt Fabric</option>
-                        <option value="Suiting">Suiting</option>
-                        <option value="Trouser Fabric">Trouser Fabric</option>
-                        <option value="Formal Wear">Formal Wear</option>
-                        <option value="Casual Wear">Casual Wear</option>
+                        <option value="">
+                          {isLoadingProductTypes ? 'Loading...' : 'Select Type'}
+                        </option>
+                        {productTypes && productTypes.length > 0 ? (
+                          productTypes.map((type, index) => {
+                            // Handle both string and object formats
+                            let typeValue, typeId;
+                            
+                            if (typeof type === 'string') {
+                              typeValue = type;
+                              typeId = index;
+                            } else {
+                              // Check various property name formats
+                              typeValue = type.ProductType || type.name || type.type || type.product_type || type.value;
+                              typeId = type.ProductTypeId || type.id || type.product_type_id || index;
+                            }
+                            
+                            // Skip if no valid value
+                            if (!typeValue) return null;
+                            
+                            return (
+                              <option key={typeId} value={typeValue}>
+                                {typeValue}
+                              </option>
+                            );
+                          })
+                        ) : !isLoadingProductTypes && (
+                          <option value="" disabled>No product types available</option>
+                        )}
                       </select>
                     </div>
 
@@ -1906,6 +2610,75 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
           )}
         </div>
       </main>
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className={`pm-toast ${toast.type}`}>
+          <div className="pm-toast-content">
+            {toast.type === 'success' ? (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+            ) : (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            )}
+            <span className="pm-toast-message">{toast.message}</span>
+          </div>
+          <button 
+            className="pm-toast-close" 
+            onClick={() => setToast({ show: false, message: '', type: '' })}
+            aria-label="Close"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="pm-modal-overlay" onClick={handleDeleteCancel}>
+          <div className="pm-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="pm-modal-header">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="pm-modal-icon">
+                <circle cx="12" cy="12" r="10" style={{ stroke: '#FF3B30' }}/>
+                <line x1="12" y1="8" x2="12" y2="12" style={{ stroke: '#FF3B30' }}/>
+                <line x1="12" y1="16" x2="12.01" y2="16" style={{ stroke: '#FF3B30' }}/>
+              </svg>
+              <h2 className="pm-modal-title">Delete Product?</h2>
+            </div>
+            <div className="pm-modal-body">
+              <p className="pm-modal-message">
+                Are you sure you want to delete <strong>{productToDelete?.title || 'this product'}</strong>? 
+                This action cannot be undone.
+              </p>
+            </div>
+            <div className="pm-modal-actions">
+              <button 
+                className="pm-modal-btn cancel" 
+                onClick={handleDeleteCancel}
+                disabled={deletingProductId !== null}
+              >
+                Cancel
+              </button>
+              <button 
+                className="pm-modal-btn confirm" 
+                onClick={handleDeleteConfirm}
+                disabled={deletingProductId !== null}
+              >
+                {deletingProductId ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
