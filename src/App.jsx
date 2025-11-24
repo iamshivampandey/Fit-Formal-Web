@@ -5,6 +5,7 @@ import SplashScreen from './components/SplashScreen'
 import Toast from './components/Toast'
 import Home from './components/Home'
 import ProductManagement from './components/ProductManagement'
+import Profile from './components/Profile'
 import './App.css'
 
 function App() {
@@ -182,6 +183,10 @@ function App() {
     setCurrentView('home');
   };
 
+  const handleNavigateToProfile = () => {
+    setCurrentView('profile');
+  };
+
   // If user is not logged in, force login view (unless on signup)
   const viewToRender = !user && currentView !== 'signup' ? 'login' : currentView;
 
@@ -194,11 +199,18 @@ function App() {
           user={user}
           onLogout={handleLogout}
           onNavigateToProducts={handleNavigateToProducts}
+          onNavigateToProfile={handleNavigateToProfile}
         />
       ) : viewToRender === 'products' ? (
         <ProductManagement
           user={user}
           onBackToDashboard={handleNavigateToDashboard}
+        />
+      ) : viewToRender === 'profile' ? (
+        <Profile
+          user={user}
+          onLogout={handleLogout}
+          onBack={handleNavigateToDashboard}
         />
       ) : viewToRender === 'login' ? (
         <LoginForm
