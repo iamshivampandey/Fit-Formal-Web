@@ -422,6 +422,11 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
       }
       // Note: valid_from and valid_to are not in the form, but can be added if needed
       
+      // Inventory field
+      if (formData.stock_qty !== '' && formData.stock_qty !== null && formData.stock_qty !== undefined) {
+        formDataToSend.append('stock_qty', formData.stock_qty);
+      }
+      
       // Add images as files (max 10)
       if (productImages && productImages.length > 0) {
         productImages.slice(0, 10).forEach((image) => {
@@ -476,24 +481,9 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
         return;
       }
       
-      // Success - update or add product to local state if needed
-      if (isEditing) {
-        // Update existing product in local state
-        setProducts(prev => prev.map(p => 
-          p.id === editingProduct.id ? { ...p, ...formData, images: productImages } : p
-        ));
-      } else {
-        // Add new product to local state
-        if (data && data.id) {
-          setProducts(prev => [...prev, {
-            id: data.id,
-            ...formData,
-            images: productImages
-          }]);
-        }
-      }
-      
-      // Refresh list and show products
+      // Success - Refresh list from API to get proper nested structure
+      // Don't update local state with formData as it has flat structure
+      // API response has nested structure (brand: {}, category: {}, price: {}, inventory: {}, compliance: {})
       await fetchProducts({ page: 1, limit: pageLimit, is_active: isActiveFilter });
       // Reset form and show the list view
       setFieldErrors({});
@@ -586,7 +576,7 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
       price_mrp: product.price?.price_mrp || product.price_mrp || '',
       price_sale: product.price?.price_sale || product.price_sale || '',
       currency_code: product.price?.currency_code || product.currency_code || 'INR',
-      stock_qty: product.stock_qty || '',
+      stock_qty: product.inventory?.stock_qty || product.stock_qty || '',
       country_of_origin: product.compliance?.country_of_origin || product.country_of_origin || '',
       manufacturer_details: product.compliance?.manufacturer_details || product.manufacturer_details || '',
       packer_details: product.compliance?.packer_details || product.packer_details || '',
@@ -1359,7 +1349,7 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
                     </div>
 
                     <div className="pm-detail-stock">
-                      <strong>Stock:</strong> {viewingProduct.stock_qty || 0} {viewingProduct.unit || 'meter'}
+                      <strong>Stock:</strong> {viewingProduct.inventory?.stock_qty || viewingProduct.stock_qty || 0} {viewingProduct.unit || 'meter'}
                     </div>
 
                     {viewingProduct.short_description && (
@@ -1600,7 +1590,7 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
                               <span className="pm-price-original">₹{product.price?.price_sale || product.price_sale}</span>
                             )}
                           </div>
-                          <div className="pm-product-stock">Stock: {product.stock_qty || 0} {product.unit || 'meter'}</div>
+                          <div className="pm-product-stock">Stock: {product.inventory?.stock_qty || product.stock_qty || 0} {product.unit || 'meter'}</div>
                         </div>
                       </div>
                       <div className="pm-product-actions">
