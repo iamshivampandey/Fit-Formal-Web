@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './CustomerHome.css';
 
-const CustomerHome = ({ user, onLogout }) => {
+const CustomerHome = ({ user, onLogout, onNavigateToProfile }) => {
   const [activeTab, setActiveTab] = useState('browse');
 
   return (
@@ -36,7 +36,10 @@ const CustomerHome = ({ user, onLogout }) => {
             </button>
             <button 
               className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-              onClick={() => setActiveTab('profile')}
+              onClick={() => {
+                setActiveTab('profile');
+                onNavigateToProfile();
+              }}
             >
               Profile
             </button>

@@ -241,7 +241,7 @@ const ActionCard = ({ title, description, icon, onClick }) => {
 // MAIN COMPONENT
 // ============================================
 
-const SellerHome = ({ user, onLogout, onNavigateToProducts }) => {
+const SellerHome = ({ user, onLogout, onNavigateToProducts, onNavigateToProfile }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
 
   /**
@@ -251,6 +251,11 @@ const SellerHome = ({ user, onLogout, onNavigateToProducts }) => {
     setActiveTab(tabId);
     // Add navigation logic here when implementing routing
     console.log(`Navigating to ${tabId}`);
+    
+    // Navigate to profile if profile tab is clicked
+    if (tabId === 'profile' && onNavigateToProfile) {
+      onNavigateToProfile();
+    }
   };
 
   /**
