@@ -1,9 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './Profile.css';
 
-const Profile = ({ user, onLogout, onBack }) => {
+const Profile = ({ user, onLogout, onBack, onShowToast }) => {
   const [activeSection, setActiveSection] = useState('personal');
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditingBusiness, setIsEditingBusiness] = useState(false);
+  const [isLoadingBusiness, setIsLoadingBusiness] = useState(false);
+  const [businessError, setBusinessError] = useState('');
+  const [newLogoFile, setNewLogoFile] = useState(null);
+  const [newLogoPreview, setNewLogoPreview] = useState('');
+  const [isSubmittingBusiness, setIsSubmittingBusiness] = useState(false);
+  
   const [formData, setFormData] = useState({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
@@ -14,7 +21,9 @@ const Profile = ({ user, onLogout, onBack }) => {
     state: user?.state || '',
     pincode: user?.pincode || '',
   });
-console.log(user);
+  
+  console.log(user);
+  
   // For measurement data (customer specific)
   const [measurements, setMeasurements] = useState({
     chest: '38',
@@ -25,6 +34,32 @@ console.log(user);
     neck: '15',
     hip: '36',
     inseam: '30',
+  });
+  
+  // For business data (seller specific)
+  const [businessData, setBusinessData] = useState({
+    businessId: '',
+    userId: '',
+    businessName: '',
+    ownerName: '',
+    businessLogo: '',
+    businessDescription: '',
+    mobileNumber: '',
+    alternateNumber: '',
+    email: '',
+    shopAddress: '',
+    googleMapLink: '',
+    gpsLatitude: '',
+    gpsLongitude: '',
+    workingCity: '',
+    serviceTypes: '',
+    specialization: '',
+    yearsOfExperience: '',
+    portfolioPhotos: '',
+    certifications: '',
+    openingTime: '',
+    closingTime: '',
+    weeklyOff: ''
   });
 
   const handleInputChange = (e) => {
@@ -42,12 +77,177 @@ console.log(user);
       [name]: value
     }));
   };
+  
+  const handleBusinessInputChange = (e) => {
+    const { name, value } = e.target;
+    setBusinessData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
+  const handleLogoUpload = (e) => {
+    const file = e.target.files[0];
+    
+    if (file) {
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        if (onShowToast) {
+          onShowToast('Please upload a valid image file (JPG, PNG, GIF, or WebP)', 'error');
+        }
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        if (onShowToast) {
+          onShowToast('Image size should be less than 5MB', 'error');
+        }
+        return;
+      }
+      
+      // Store the file
+      setNewLogoFile(file);
+      
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewLogoPreview(reader.result);
+        // Update business data with new logo
+        setBusinessData(prev => ({
+          ...prev,
+          businessLogo: reader.result
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  
+  const handleRemoveNewLogo = () => {
+    setNewLogoFile(null);
+    setNewLogoPreview('');
+    // Reset to original logo or empty
+    const fileInput = document.querySelector('input[name="businessLogoFile"]');
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  };
 
   const handleSave = () => {
     console.log('Saving profile data:', formData);
     // Add API call here to save profile data
     setIsEditing(false);
-    alert('Profile updated successfully!');
+    if (onShowToast) {
+      onShowToast('Profile updated successfully!', 'success');
+    }
+  };
+  
+  const handleBusinessSave = async () => {
+    console.log('Saving business data:', businessData);
+    
+    // Prevent duplicate submissions
+    if (isSubmittingBusiness) {
+      console.log('⚠️ Business update already in progress, ignoring duplicate request');
+      return;
+    }
+    
+    if (!businessData.businessId) {
+      if (onShowToast) {
+        onShowToast('Business ID not found. Cannot update.', 'error');
+      }
+      return;
+    }
+    
+    setIsSubmittingBusiness(true);
+    
+    try {
+      // Convert time format from HH:MM to ISO timestamp if needed
+      const prepareTimeForAPI = (timeString) => {
+        if (!timeString) return null;
+        try {
+          // Create a date with the time (using today's date)
+          const [hours, minutes] = timeString.split(':');
+          const date = new Date();
+          date.setUTCHours(parseInt(hours), parseInt(minutes), 0, 0);
+          return date.toISOString();
+        } catch (e) {
+          console.warn('Failed to format time:', e);
+          return timeString;
+        }
+      };
+      
+      const updatePayload = {
+        userId: businessData.userId || user.id,
+        businessName: businessData.businessName,
+        ownerName: businessData.ownerName,
+        businessLogo: businessData.businessLogo,
+        businessDescription: businessData.businessDescription,
+        mobileNumber: businessData.mobileNumber,
+        alternateNumber: businessData.alternateNumber,
+        email: businessData.email,
+        shopAddress: businessData.shopAddress,
+        googleMapLink: businessData.googleMapLink,
+        gpsLatitude: businessData.gpsLatitude,
+        gpsLongitude: businessData.gpsLongitude,
+        workingCity: businessData.workingCity,
+        serviceTypes: businessData.serviceTypes,
+        specialization: businessData.specialization,
+        yearsOfExperience: businessData.yearsOfExperience,
+        portfolioPhotos: businessData.portfolioPhotos,
+        certifications: businessData.certifications,
+        openingTime: prepareTimeForAPI(businessData.openingTime),
+        closingTime: prepareTimeForAPI(businessData.closingTime),
+        weeklyOff: businessData.weeklyOff
+      };
+      
+      console.log('🔄 Updating business with ID:', businessData.businessId);
+      console.log('📦 Update payload:', updatePayload);
+      
+      const response = await fetch(`/api/business/${businessData.businessId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${user.token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updatePayload)
+      });
+      
+      const data = await response.json();
+      console.log('📡 Update response:', data);
+      
+      if (response.ok && data.success) {
+        setIsEditingBusiness(false);
+        if (onShowToast) {
+          onShowToast('Business information updated successfully!', 'success');
+        }
+      } else {
+        if (onShowToast) {
+          onShowToast(data.message || 'Failed to update business information', 'error');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error updating business data:', error);
+      if (onShowToast) {
+        onShowToast('Failed to update business information. Please try again.', 'error');
+      }
+    } finally {
+      setIsSubmittingBusiness(false);
+    }
+  };
+  
+  const handleBusinessCancel = () => {
+    setIsEditingBusiness(false);
+    // Reset any new logo preview
+    setNewLogoFile(null);
+    setNewLogoPreview('');
+    // Reset file input
+    const fileInput = document.querySelector('input[name="businessLogoFile"]');
+    if (fileInput) {
+      fileInput.value = '';
+    }
+    // Optionally reload the data to reset any changes
   };
 
   const handleCancel = () => {
@@ -82,6 +282,113 @@ console.log(user);
     isSeller,
     showBusinessInfo
   });
+
+  // Fetch business data when business section is active
+  useEffect(() => {
+    const fetchBusinessData = async () => {
+      // Only fetch if user is seller and business section is active
+      if (!showBusinessInfo || activeSection !== 'business' || !user?.id) {
+        return;
+      }
+      
+      setIsLoadingBusiness(true);
+      setBusinessError('');
+      
+      try {
+        console.log('🔄 Fetching business data for userId:', user.id);
+        const response = await fetch(`/api/business/${user.id}`, {
+          headers: {
+            'Authorization': `Bearer ${user.token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const data = await response.json();
+        console.log('📡 Business API response:', data);
+        
+        if (response.ok && data.success && data.data) {
+          // Parse serviceTypes if it's a JSON string
+          let serviceTypes = data.data.serviceTypes;
+          if (typeof serviceTypes === 'string') {
+            try {
+              serviceTypes = JSON.parse(serviceTypes);
+            } catch (e) {
+              console.warn('Failed to parse serviceTypes:', e);
+            }
+          }
+          
+          // Parse portfolioPhotos if it's a JSON string
+          let portfolioPhotos = data.data.portfolioPhotos;
+          if (typeof portfolioPhotos === 'string') {
+            try {
+              portfolioPhotos = JSON.parse(portfolioPhotos);
+            } catch (e) {
+              console.warn('Failed to parse portfolioPhotos:', e);
+            }
+          }
+          
+          // Parse time from ISO format to HH:MM format for time inputs
+          const formatTime = (timeString) => {
+            if (!timeString) return '';
+            try {
+              const date = new Date(timeString);
+              const hours = date.getUTCHours().toString().padStart(2, '0');
+              const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+              return `${hours}:${minutes}`;
+            } catch (e) {
+              console.warn('Failed to parse time:', e);
+              return '';
+            }
+          };
+          
+          // Update business data with fetched values - using exact column names from database
+          setBusinessData({
+            businessId: data.data.businessId || '',
+            userId: data.data.userId || '',
+            businessName: data.data.BusinessName || data.data.businessName || '',
+            ownerName: data.data.ownerName || '',
+            businessLogo: data.data.businessLogo || '',
+            businessDescription: data.data.businessDescription || '',
+            mobileNumber: data.data.mobileNumber || '',
+            alternateNumber: data.data.alternateNumber || '',
+            email: data.data.Email || data.data.email || '',
+            shopAddress: data.data.shopAddress || '',
+            googleMapLink: data.data.googleMapLink || '',
+            gpsLatitude: data.data.gpsLatitude || '',
+            gpsLongitude: data.data.gpsLongitude || '',
+            workingCity: data.data.workingCity || '',
+            serviceTypes: Array.isArray(serviceTypes) ? serviceTypes.join(', ') : (serviceTypes || ''),
+            specialization: data.data.specialization || '',
+            yearsOfExperience: data.data.yearsOfExperience || '',
+            portfolioPhotos: Array.isArray(portfolioPhotos) ? portfolioPhotos.join(', ') : (portfolioPhotos || ''),
+            certifications: data.data.certifications || '',
+            openingTime: formatTime(data.data.openingTime),
+            closingTime: formatTime(data.data.closingTime),
+            weeklyOff: data.data.weeklyOff || ''
+          });
+          console.log('✅ Business data loaded successfully');
+          console.log('📊 Loaded business data:', {
+            businessId: data.data.businessId,
+            businessName: data.data.BusinessName || data.data.businessName,
+            workingCity: data.data.workingCity
+          });
+        } else if (response.status === 404) {
+          // No business info found - this is okay for new sellers
+          console.log('ℹ️ No business information found for this user');
+          setBusinessError('No business information found. Please contact support to add your business details.');
+        } else {
+          throw new Error(data.message || 'Failed to fetch business data');
+        }
+      } catch (error) {
+        console.error('❌ Error fetching business data:', error);
+        setBusinessError('Failed to load business information. Please try again later.');
+      } finally {
+        setIsLoadingBusiness(false);
+      }
+    };
+    
+    fetchBusinessData();
+  }, [activeSection, user, showBusinessInfo]);
 
   return (
     <div className="profile-container">
@@ -522,82 +829,498 @@ console.log(user);
               <div className="content-section">
                 <div className="section-header">
                   <h3 className="section-title">Business Information</h3>
-                  <button className="edit-btn">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                    </svg>
-                    Edit
-                  </button>
+                  {!isEditingBusiness ? (
+                    <button className="edit-btn" onClick={() => setIsEditingBusiness(true)}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                      Edit
+                    </button>
+                  ) : (
+                    <div className="edit-actions">
+                      <button className="cancel-btn" onClick={handleBusinessCancel} disabled={isSubmittingBusiness}>
+                        Cancel
+                      </button>
+                      <button className="save-btn" onClick={handleBusinessSave} disabled={isSubmittingBusiness}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        {isSubmittingBusiness ? 'Saving...' : 'Save Changes'}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                <div className="form-grid">
-                  <div className="form-group full-width">
-                    <label className="form-label">Business Name</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Enter business name"
-                      defaultValue="Elite Tailors & Fabrics"
-                    />
+                {isLoadingBusiness ? (
+                  <div className="loading-message" style={{ textAlign: 'center', padding: '2rem' }}>
+                    Loading business information...
                   </div>
+                ) : businessError ? (
+                  <div className="error-message" style={{ color: '#e74c3c', padding: '1rem', background: '#fee', borderRadius: '8px' }}>
+                    {businessError}
+                  </div>
+                ) : (
+                  <div className="form-grid">
+                    {/* Business Logo Display & Upload */}
+                    <div className="form-group full-width" style={{ marginBottom: '1.5rem' }}>
+                      <label className="form-label">Business Logo</label>
+                      
+                      {/* Show current logo if exists */}
+                      {businessData.businessLogo && (
+                        <div style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '1rem',
+                          padding: '1rem',
+                          background: '#f8f9fa',
+                          borderRadius: '8px',
+                          border: '1px solid #e5e5ea',
+                          marginBottom: isEditingBusiness ? '1rem' : '0'
+                        }}>
+                          <img 
+                            src={businessData.businessLogo} 
+                            alt="Business Logo" 
+                            style={{ 
+                              width: '100px', 
+                              height: '100px', 
+                              objectFit: 'contain',
+                              borderRadius: '8px',
+                              background: 'white',
+                              border: '1px solid #ddd',
+                              padding: '0.5rem'
+                            }} 
+                          />
+                          <div style={{ flex: 1 }}>
+                            <p style={{ margin: 0, fontSize: '0.9rem', color: '#666', fontWeight: '500' }}>
+                              {newLogoPreview ? 'Previous Logo' : 'Current Logo'}
+                            </p>
+                            {isEditingBusiness && !newLogoPreview && (
+                              <button
+                                type="button"
+                                onClick={() => setBusinessData(prev => ({ ...prev, businessLogo: '' }))}
+                                style={{
+                                  marginTop: '0.5rem',
+                                  padding: '0.5rem 1rem',
+                                  background: '#dc3545',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  fontSize: '0.85rem'
+                                }}
+                              >
+                                Remove Logo
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Show new logo preview if uploaded */}
+                      {newLogoPreview && isEditingBusiness && (
+                        <div style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '1rem',
+                          padding: '1rem',
+                          background: '#e8f5e9',
+                          borderRadius: '8px',
+                          border: '2px solid #4caf50',
+                          marginBottom: '1rem'
+                        }}>
+                          <img 
+                            src={newLogoPreview} 
+                            alt="New Business Logo" 
+                            style={{ 
+                              width: '100px', 
+                              height: '100px', 
+                              objectFit: 'contain',
+                              borderRadius: '8px',
+                              background: 'white',
+                              border: '1px solid #ddd',
+                              padding: '0.5rem'
+                            }} 
+                          />
+                          <div style={{ flex: 1 }}>
+                            <p style={{ margin: 0, fontSize: '0.9rem', color: '#2e7d32', fontWeight: '600' }}>
+                              ✓ New Logo (will be updated on save)
+                            </p>
+                            <button
+                              type="button"
+                              onClick={handleRemoveNewLogo}
+                              style={{
+                                marginTop: '0.5rem',
+                                padding: '0.5rem 1rem',
+                                background: '#ff9800',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '0.85rem'
+                              }}
+                            >
+                              Cancel New Logo
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Upload new logo in edit mode */}
+                      {isEditingBusiness && (
+                        <div style={{ marginTop: '0.5rem' }}>
+                          <input
+                            type="file"
+                            name="businessLogoFile"
+                            onChange={handleLogoUpload}
+                            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                            style={{
+                              padding: '0.75rem',
+                              border: '2px dashed #654321',
+                              borderRadius: '8px',
+                              width: '100%',
+                              cursor: 'pointer',
+                              background: '#fff9f0'
+                            }}
+                          />
+                          <span style={{ 
+                            display: 'block', 
+                            fontSize: '0.8rem', 
+                            color: '#8E8E93', 
+                            marginTop: '0.5rem',
+                            fontStyle: 'italic'
+                          }}>
+                            {businessData.businessLogo 
+                              ? 'Upload a new logo to replace the current one' 
+                              : 'Upload your business logo (JPG, PNG, GIF, or WebP, max 5MB)'
+                            }
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* No logo message */}
+                      {!businessData.businessLogo && !isEditingBusiness && (
+                        <p style={{ 
+                          color: '#999', 
+                          fontStyle: 'italic', 
+                          margin: '0.5rem 0',
+                          padding: '1rem',
+                          background: '#f8f9fa',
+                          borderRadius: '8px',
+                          textAlign: 'center'
+                        }}>
+                          No business logo uploaded yet
+                        </p>
+                      )}
+                    </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Business Type</label>
-                    <select className="form-input">
-                      <option>Fabric Shop</option>
-                      <option>Tailor</option>
-                      <option>Both</option>
-                    </select>
-                  </div>
+                    <div className="form-group full-width">
+                      <label className="form-label">Business Name</label>
+                      <input
+                        type="text"
+                        name="businessName"
+                        className="form-input"
+                        placeholder="Enter business name"
+                        value={businessData.businessName}
+                        onChange={handleBusinessInputChange}
+                        disabled={!isEditingBusiness}
+                      />
+                    </div>
 
-                  <div className="form-group">
-                    <label className="form-label">GST Number</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Enter GST number"
-                    />
-                  </div>
+                    <div className="form-group">
+                      <label className="form-label">Owner Name</label>
+                      <input
+                        type="text"
+                        name="ownerName"
+                        className="form-input"
+                        placeholder="Enter owner name"
+                        value={businessData.ownerName}
+                        onChange={handleBusinessInputChange}
+                        disabled={!isEditingBusiness}
+                      />
+                    </div>
 
-                  <div className="form-group full-width">
-                    <label className="form-label">Shop Address</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Enter shop address"
-                    />
-                  </div>
+                    <div className="form-group">
+                      <label className="form-label">Working City</label>
+                      <input
+                        type="text"
+                        name="workingCity"
+                        className="form-input"
+                        placeholder="Enter working city"
+                        value={businessData.workingCity}
+                        onChange={handleBusinessInputChange}
+                        disabled={!isEditingBusiness}
+                      />
+                    </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Business Hours</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="e.g., 9 AM - 9 PM"
-                      defaultValue="9:00 AM - 9:00 PM"
-                    />
-                  </div>
+                    <div className="form-group full-width">
+                      <label className="form-label">Shop Address</label>
+                      <input
+                        type="text"
+                        name="shopAddress"
+                        className="form-input"
+                        placeholder="Enter shop address"
+                        value={businessData.shopAddress}
+                        onChange={handleBusinessInputChange}
+                        disabled={!isEditingBusiness}
+                      />
+                    </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Contact Number</label>
-                    <input
-                      type="tel"
-                      className="form-input"
-                      placeholder="Enter contact number"
-                    />
-                  </div>
+                    <div className="form-group">
+                      <label className="form-label">Mobile Number</label>
+                      <input
+                        type="tel"
+                        name="mobileNumber"
+                        className="form-input"
+                        placeholder="Enter contact number"
+                        value={businessData.mobileNumber}
+                        onChange={handleBusinessInputChange}
+                        disabled={!isEditingBusiness}
+                      />
+                    </div>
 
-                  <div className="form-group full-width">
-                    <label className="form-label">Description</label>
-                    <textarea
-                      className="form-textarea"
-                      rows="4"
-                      placeholder="Tell customers about your business"
-                      defaultValue="We provide premium quality fabrics and expert tailoring services for all your formal wear needs."
-                    />
+                    <div className="form-group">
+                      <label className="form-label">Alternate Number</label>
+                      <input
+                        type="tel"
+                        name="alternateNumber"
+                        className="form-input"
+                        placeholder="Enter alternate number"
+                        value={businessData.alternateNumber}
+                        onChange={handleBusinessInputChange}
+                        disabled={!isEditingBusiness}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Business Email</label>
+                      <input
+                        type="email"
+                        name="email"
+                        className="form-input"
+                        placeholder="Enter business email"
+                        value={businessData.email}
+                        onChange={handleBusinessInputChange}
+                        disabled={!isEditingBusiness}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Google Maps Link</label>
+                      <input
+                        type="url"
+                        name="googleMapLink"
+                        className="form-input"
+                        placeholder="Enter Google Maps link"
+                        value={businessData.googleMapLink}
+                        onChange={handleBusinessInputChange}
+                        disabled={!isEditingBusiness}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Opening Time</label>
+                      <input
+                        type="time"
+                        name="openingTime"
+                        className="form-input"
+                        value={businessData.openingTime}
+                        onChange={handleBusinessInputChange}
+                        disabled={!isEditingBusiness}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Closing Time</label>
+                      <input
+                        type="time"
+                        name="closingTime"
+                        className="form-input"
+                        value={businessData.closingTime}
+                        onChange={handleBusinessInputChange}
+                        disabled={!isEditingBusiness}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Weekly Off</label>
+                      <input
+                        type="text"
+                        name="weeklyOff"
+                        className="form-input"
+                        placeholder="e.g., Sunday, Monday"
+                        value={businessData.weeklyOff}
+                        onChange={handleBusinessInputChange}
+                        disabled={!isEditingBusiness}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Years of Experience</label>
+                      <input
+                        type="number"
+                        name="yearsOfExperience"
+                        className="form-input"
+                        placeholder="Enter years of experience"
+                        value={businessData.yearsOfExperience}
+                        onChange={handleBusinessInputChange}
+                        disabled={!isEditingBusiness}
+                      />
+                    </div>
+
+                    <div className="form-group full-width">
+                      <label className="form-label">Service Types</label>
+                      <input
+                        type="text"
+                        name="serviceTypes"
+                        className="form-input"
+                        placeholder="e.g., Custom Tailoring, Alterations"
+                        value={businessData.serviceTypes}
+                        onChange={handleBusinessInputChange}
+                        disabled={!isEditingBusiness}
+                      />
+                      <span className="input-hint">Comma-separated list of services</span>
+                    </div>
+
+                    <div className="form-group full-width">
+                      <label className="form-label">Specialization</label>
+                      <input
+                        type="text"
+                        name="specialization"
+                        className="form-input"
+                        placeholder="e.g., Wedding Suits, Corporate Wear"
+                        value={businessData.specialization}
+                        onChange={handleBusinessInputChange}
+                        disabled={!isEditingBusiness}
+                      />
+                    </div>
+
+                    <div className="form-group full-width">
+                      <label className="form-label">Description</label>
+                      <textarea
+                        name="businessDescription"
+                        className="form-textarea"
+                        rows="4"
+                        placeholder="Tell customers about your business"
+                        value={businessData.businessDescription}
+                        onChange={handleBusinessInputChange}
+                        disabled={!isEditingBusiness}
+                      />
+                    </div>
+
+                    <div className="form-group full-width">
+                      <label className="form-label">Certifications & Awards</label>
+                      <textarea
+                        name="certifications"
+                        className="form-textarea"
+                        rows="2"
+                        placeholder="List certifications and awards"
+                        value={businessData.certifications}
+                        onChange={handleBusinessInputChange}
+                        disabled={!isEditingBusiness}
+                      />
+                    </div>
+
+                    <div className="form-group full-width">
+                      <label className="form-label">Portfolio Photos</label>
+                      
+                      {/* Display portfolio images if they exist */}
+                      {businessData.portfolioPhotos && !isEditingBusiness && (
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+                          gap: '1rem',
+                          marginBottom: '1rem',
+                          padding: '1rem',
+                          background: '#f8f9fa',
+                          borderRadius: '8px',
+                          border: '1px solid #e5e5ea'
+                        }}>
+                          {businessData.portfolioPhotos.split(',').map((url, index) => {
+                            const trimmedUrl = url.trim();
+                            if (!trimmedUrl) return null;
+                            return (
+                              <div key={index} style={{
+                                position: 'relative',
+                                paddingTop: '100%',
+                                background: 'white',
+                                borderRadius: '8px',
+                                overflow: 'hidden',
+                                border: '1px solid #ddd'
+                              }}>
+                                <img
+                                  src={trimmedUrl}
+                                  alt={`Portfolio ${index + 1}`}
+                                  style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    height: '100%',
+                                    objectFit: 'cover'
+                                  }}
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    e.target.parentElement.innerHTML = '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#999;font-size:0.8rem;">Invalid image</div>';
+                                  }}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      
+                      {/* Input field for editing */}
+                      {isEditingBusiness && (
+                        <>
+                          <input
+                            type="text"
+                            name="portfolioPhotos"
+                            className="form-input"
+                            placeholder="Portfolio photo URLs (comma-separated)"
+                            value={businessData.portfolioPhotos}
+                            onChange={handleBusinessInputChange}
+                            disabled={!isEditingBusiness}
+                          />
+                          <span className="input-hint">Add URLs or base64 images of your work samples (comma-separated)</span>
+                        </>
+                      )}
+                      
+                      {!businessData.portfolioPhotos && !isEditingBusiness && (
+                        <p style={{ color: '#999', fontStyle: 'italic', margin: '0.5rem 0' }}>
+                          No portfolio photos added yet
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">GPS Latitude</label>
+                      <input
+                        type="text"
+                        name="gpsLatitude"
+                        className="form-input"
+                        placeholder="e.g., 28.6139"
+                        value={businessData.gpsLatitude}
+                        onChange={handleBusinessInputChange}
+                        disabled={!isEditingBusiness}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">GPS Longitude</label>
+                      <input
+                        type="text"
+                        name="gpsLongitude"
+                        className="form-input"
+                        placeholder="e.g., 77.2090"
+                        value={businessData.gpsLongitude}
+                        onChange={handleBusinessInputChange}
+                        disabled={!isEditingBusiness}
+                      />
+                    </div>
+
                   </div>
-                </div>
+                )}
               </div>
             )}
 

@@ -7,19 +7,22 @@ const SignupForm = ({
   onBackToLogin,
   onTermsClick,
   onPrivacyClick,
-  selectedRole
+  selectedRole,
+  isSeller = false,
+  initialData = null
 }) => {
   const [formData, setFormData] = useState({
-    phoneNumber: '',
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: ''
+    phoneNumber: initialData?.phoneNumber || '',
+    firstName: initialData?.firstName || '',
+    lastName: initialData?.lastName || '',
+    email: initialData?.email || '',
+    password: initialData?.password || ''
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -96,8 +99,15 @@ const SignupForm = ({
     e.preventDefault();
     setApiError('');
     
+    // Prevent duplicate submissions
+    if (isSubmitting || isLoading) {
+      console.log('⚠️ Submission already in progress, ignoring duplicate request');
+      return;
+    }
+    
     console.log('📝 Form submission started');
     console.log('📋 Current form data:', formData);
+    console.log('🎭 Is Seller:', isSeller);
     
     const isValid = validateForm();
     console.log('✔️ Form is valid:', isValid);
@@ -112,72 +122,22 @@ const SignupForm = ({
       return;
     }
     
-    setIsLoading(true);
-    
-    const requestPayload = {
+    // Pass data to parent component (App.jsx will handle API call)
+    const userData = {
       email: formData.email,
       password: formData.password,
       firstName: formData.firstName,
       lastName: formData.lastName,
       phoneNumber: formData.phoneNumber,
-      roleName: selectedRole || 'Seller'
+      roleName: selectedRole || (isSeller ? 'Seller' : 'Customer')
     };
     
-    console.log('🚀 Making API call to /api/auth/signup');
-    console.log('📦 Request payload:', requestPayload);
+    console.log('📤 Passing data to parent component (App.jsx)');
+    console.log('🎭 Role:', userData.roleName);
+    console.log('👤 Is Seller:', isSeller);
     
-    try {
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestPayload)
-      });
-      
-      console.log('📡 Response status:', response.status);
-      console.log('📡 Response headers:', response.headers);
-      
-      // Check if response is JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Server error: API endpoint not available. Please ensure the backend server is running.');
-      }
-      
-      const data = await response.json();
-      console.log('✅ API Response data:', data);
-      
-      if (!response.ok) {
-        // Handle backend validation errors
-        if (data.errors && Array.isArray(data.errors)) {
-          console.log('🔴 Backend validation errors:', data.errors);
-          
-          // Display all backend errors
-          const errorMessages = data.errors.map(err => {
-            if (typeof err === 'string') return err;
-            if (err.message) return err.message;
-            if (err.msg) return err.msg;
-            return JSON.stringify(err);
-          }).join('\n');
-          
-          setApiError(errorMessages || data.message || 'Validation failed. Please check your input.');
-        } else {
-          setApiError(data.message || 'Signup failed. Please try again.');
-        }
-        return;
-      }
-      
-      // Call onSignup callback if provided
-      if (onSignup) {
-        console.log('✅ Signup successful, calling onSignup callback');
-        onSignup(data);
-      }
-      
-    } catch (error) {
-      console.error('❌ Signup error:', error);
-      setApiError(error.message || 'An error occurred during signup. Please try again.');
-    } finally {
-      setIsLoading(false);
+    if (onSignup) {
+      onSignup(userData);
     }
   };
 
@@ -308,8 +268,8 @@ const SignupForm = ({
             </div>
           )}
 
-          <button type="submit" className="signup-button" disabled={isLoading}>
-            {isLoading ? 'Creating Account...' : 'Create Account'}
+          <button type="submit" className="signup-button" disabled={isLoading || isSubmitting}>
+            {(isLoading || isSubmitting) ? (isSeller ? 'Processing...' : 'Creating Account...') : (isSeller ? 'Continue to Business Info' : 'Create Account')}
           </button>
         </form>
 

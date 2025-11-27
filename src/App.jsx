@@ -144,14 +144,69 @@ function App() {
     setToast({ message, type });
   };
 
-  const handleSignupSubmit = (data) => {
-    console.log('✅ Signup successful! API Response:', data);
+  const handleSignupSubmit = async (data) => {
+    console.log('✅ App.jsx - Signup form completed! Full Data:', data);
+    console.log('🏢 App.jsx - Has businessInfo?', !!data.businessInfo);
+    console.log('🏢 App.jsx - businessInfo content:', data.businessInfo);
     
-    // Show success toast message
-    showToast('Account created successfully! Please sign in with your credentials.', 'success');
-    
-    // Redirect to sign-in page
-    setCurrentView('login');
+    try {
+      // Prepare the API request payload
+      const signupPayload = {
+        email: data.email,
+        password: data.password,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phoneNumber: data.phoneNumber,
+        roleName: data.role || data.roleName || 'Customer'
+      };
+      
+      // If business info exists, add it to the signup payload
+      if (data.businessInfo) {
+        signupPayload.businessInfo = data.businessInfo;
+        console.log('✅ Business info added to signup payload');
+        console.log('🏢 Business info keys:', Object.keys(data.businessInfo));
+      }
+      
+      console.log('🚀 Making API call to /api/auth/signup');
+      console.log('📦 Complete signup payload:', signupPayload);
+      
+      // Call the signup API
+      const signupResponse = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(signupPayload)
+      });
+      
+      console.log('📡 Raw signup response status:', signupResponse.status);
+      console.log('📡 Raw signup response ok?:', signupResponse.ok);
+      
+      const signupData = await signupResponse.json();
+      console.log('📡 Signup API response (full):', JSON.stringify(signupData, null, 2));
+      
+      if (!signupResponse.ok) {
+        console.error('❌ Signup failed with status:', signupResponse.status);
+        throw new Error(signupData.message || 'Signup failed');
+      }
+      
+      // Success! Show appropriate message
+      console.log('✅ Signup successful!');
+      if (data.businessInfo) {
+        console.log('✅ Seller account created with business information');
+        showToast('Account and business profile created successfully! Please sign in.', 'success');
+      } else {
+        console.log('✅ Customer account created');
+        showToast('Account created successfully! Please sign in with your credentials.', 'success');
+      }
+      
+      // Redirect to sign-in page
+      setCurrentView('login');
+      
+    } catch (error) {
+      console.error('❌ Signup error:', error);
+      showToast(error.message || 'An error occurred during signup. Please try again.', 'error');
+    }
   };
 
   const handleTermsClick = () => {
@@ -211,6 +266,7 @@ function App() {
           user={user}
           onLogout={handleLogout}
           onBack={handleNavigateToDashboard}
+          onShowToast={showToast}
         />
       ) : viewToRender === 'login' ? (
         <LoginForm
@@ -227,6 +283,7 @@ function App() {
         <MultiStepSignup
           onBackToLogin={handleBackToLogin}
           onSignupComplete={handleSignupSubmit}
+          onShowToast={showToast}
         />
       )}
       

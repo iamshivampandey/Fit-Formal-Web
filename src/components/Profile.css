@@ -372,6 +372,14 @@
   min-height: 100px;
 }
 
+.input-hint {
+  display: block;
+  font-size: 0.8rem;
+  color: #8E8E93;
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
 /* Measurements Section */
 .measurements-info {
   margin-bottom: 2rem;

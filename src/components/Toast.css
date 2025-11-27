@@ -52,6 +52,11 @@
   color: white;
 }
 
+.toast-warning {
+  background-color: #FF9500;
+  color: white;
+}
+
 .toast-icon {
   font-size: 24px;
   font-weight: bold;

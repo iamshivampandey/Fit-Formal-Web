@@ -16,6 +16,7 @@ const Toast = ({ message, type = 'success', duration = 3000, onClose }) => {
         {type === 'success' && '✓'}
         {type === 'error' && '✕'}
         {type === 'info' && 'ℹ'}
+        {type === 'warning' && '⚠'}
       </div>
       <div className="toast-message">{message}</div>
       <button className="toast-close" onClick={onClose}>×</button>
