@@ -241,8 +241,20 @@ const ActionCard = ({ title, description, icon, onClick }) => {
 // MAIN COMPONENT
 // ============================================
 
-const SellerHome = ({ user, onLogout, onNavigateToProducts, onNavigateToProfile }) => {
+const SellerHome = ({ user, onLogout, onNavigateToProducts, onNavigateToProfile, onNavigateToOrdersPerDay }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  /**
+   * Check if user is a Tailor
+   */
+  const isTailor = () => {
+    if (user?.roleId === 4) return true;
+    if (user?.roleName === 'Tailor') return true;
+    if (user?.roles && user.roles.length > 0) {
+      return user.roles.some(role => role.id === 4 || role.name === 'Tailor');
+    }
+    return false;
+  };
 
   /**
    * Handler for navigation tab clicks
@@ -259,20 +271,62 @@ const SellerHome = ({ user, onLogout, onNavigateToProducts, onNavigateToProfile 
   };
 
   /**
-   * Create actions with navigation handlers
+   * Create actions with navigation handlers and role-based filtering
    */
-  const actionsWithHandlers = QUICK_ACTIONS_DATA.map(action => {
-    if (action.id === 'manageProducts' && onNavigateToProducts) {
-      return {
-        ...action,
+  const getActionsForUser = () => {
+    const tailorUser = isTailor();
+    
+    // Filter actions based on user role
+    let filteredActions = QUICK_ACTIONS_DATA.filter(action => {
+      // Remove "Add/Manage Products" for Tailors
+      if (tailorUser && action.id === 'manageProducts') {
+        return false;
+      }
+      return true;
+    });
+
+    // Add "OrdersPerDay" for Tailors in place of "Add/Manage Products"
+    if (tailorUser) {
+      const ordersPerDayAction = {
+        id: 'ordersPerDay',
+        title: 'Orders Per Day',
+        description: 'View orders per day',
+        icon: (
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+            <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/>
+          </svg>
+        ),
         onClick: () => {
-          console.log('Add/Manage Products clicked - navigating to products page');
-          onNavigateToProducts();
+          if (onNavigateToOrdersPerDay) {
+            onNavigateToOrdersPerDay();
+          }
         }
       };
+      
+      // Insert OrdersPerDay at the same position where manageProducts was (index 1)
+      filteredActions.splice(1, 0, ordersPerDayAction);
     }
-    return action;
-  });
+
+    // Add navigation handlers
+    return filteredActions.map(action => {
+      if (action.id === 'manageProducts' && onNavigateToProducts) {
+        return {
+          ...action,
+          onClick: () => {
+            console.log('Add/Manage Products clicked - navigating to products page');
+            onNavigateToProducts();
+          }
+        };
+      }
+      return action;
+    });
+  };
+
+  const actionsWithHandlers = getActionsForUser();
 
   return (
     <div className="home-container">

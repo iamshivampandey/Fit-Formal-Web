@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './CustomerHome.css';
 
-const CustomerHome = ({ user, onLogout, onNavigateToProfile }) => {
+const CustomerHome = ({ user, onLogout, onNavigateToProfile, onNavigateToTailors }) => {
   const [activeTab, setActiveTab] = useState('browse');
 
   return (
@@ -125,7 +125,7 @@ const CustomerHome = ({ user, onLogout, onNavigateToProfile }) => {
                 <p className="service-description">
                   Book professional tailors for home measurements and stitching services
                 </p>
-                <button className="service-btn">Book Now</button>
+                <button className="service-btn" onClick={onNavigateToTailors}>Book Now</button>
               </div>
 
               <div className="service-card">

@@ -1,7 +1,7 @@
 import CustomerHome from './CustomerHome';
 import SellerHome from './SellerHome';
 
-const Home = ({ user, onLogout, onNavigateToProducts, onNavigateToProfile }) => {
+const Home = ({ user, onLogout, onNavigateToProducts, onNavigateToProfile, onNavigateToTailors, onNavigateToOrdersPerDay }) => {
   // Determine which home screen to show based on role
   // roleId 2 = Customer
   // roleId 3 = Seller
@@ -46,10 +46,10 @@ const Home = ({ user, onLogout, onNavigateToProducts, onNavigateToProfile }) => 
   // Show CustomerHome for roleId 2 (Customer)
   // Show SellerHome for roleId 3, 4, 5 (Seller, Tailor, Taylorseller)
   if (roleId === 2) {
-    return <CustomerHome user={user} onLogout={onLogout} onNavigateToProfile={onNavigateToProfile} />;
+    return <CustomerHome user={user} onLogout={onLogout} onNavigateToProfile={onNavigateToProfile} onNavigateToTailors={onNavigateToTailors} />;
   }
 
-  return <SellerHome user={user} onLogout={onLogout} onNavigateToProducts={onNavigateToProducts} onNavigateToProfile={onNavigateToProfile} />;
+  return <SellerHome user={user} onLogout={onLogout} onNavigateToProducts={onNavigateToProducts} onNavigateToProfile={onNavigateToProfile} onNavigateToOrdersPerDay={onNavigateToOrdersPerDay} />;
 };
 
 export default Home;

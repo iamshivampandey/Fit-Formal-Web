@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './BusinessInfoForm.css';
 
 const BusinessInfoForm = ({ 
@@ -35,6 +35,7 @@ const BusinessInfoForm = ({
     
     // Services Details
     serviceTypes: initialData.serviceTypes || [],
+    tailoringCategories: initialData.tailoringCategories || [],
     specialization: initialData.specialization || '',
     
     // Experience
@@ -68,8 +69,24 @@ const BusinessInfoForm = ({
   };
   
   const [selectedServices, setSelectedServices] = useState(parseServiceTypes(initialData.serviceTypes));
+  const parseTailoringCategories = (categories) => {
+    if (!categories) return [];
+    if (Array.isArray(categories)) return categories;
+    if (typeof categories === 'string') {
+      try {
+        return JSON.parse(categories);
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  };
+  const [selectedTailoringCategories, setSelectedTailoringCategories] = useState(parseTailoringCategories(initialData.tailoringCategories));
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(initialData.businessLogo || '');
+  const [tailoringCategoryOptions, setTailoringCategoryOptions] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [categoriesError, setCategoriesError] = useState('');
 
   const serviceOptions = [
     'Custom Tailoring',
@@ -81,6 +98,155 @@ const BusinessInfoForm = ({
     'Measurements at Home',
     'Express Service'
   ];
+
+  // Fetch tailoring categories from API when component mounts (only for tailor roles)
+  useEffect(() => {
+    if (isTailorRole) {
+      fetchTailoringCategories();
+    }
+  }, [isTailorRole]);
+
+  const fetchTailoringCategories = async () => {
+    setLoadingCategories(true);
+    setCategoriesError('');
+    
+    // Fallback categories to use if API fails
+    const fallbackCategories = [
+      'Pant',
+      'Shirt',
+      'Kurta',
+      'Pyjama',
+      'Kurta + Pyjama (Set)',
+      'Suit (2-piece)',
+      '3-piece Suit (Coat + Pant + Waistcoat)',
+      'Blazer',
+      'Jacket',
+      'Nehru Jacket',
+      'Sherwani',
+      'Indo-Western',
+      'Safari Suit',
+      'Wedding Suit',
+      'Coat',
+      'Waistcoat',
+      'Trousers',
+      'Pathani Suit',
+      'Safari Jacket'
+    ];
+    
+    try {
+      console.log('🚀 Fetching tailoring categories from /api/tailor-items');
+      
+      // Try to get auth token from props or localStorage (may not be available during signup)
+      let token = authToken || null;
+      if (!token) {
+        // Try to get from localStorage
+        const savedUser = localStorage.getItem('user');
+        if (savedUser) {
+          try {
+            const user = JSON.parse(savedUser);
+            token = user?.token;
+          } catch (e) {
+            console.log('No user token available (expected during signup)');
+          }
+        }
+      }
+      
+      // Prepare headers
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Add auth token if available (may not be available during signup)
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+        console.log('🔑 Adding authorization token to request');
+      } else {
+        console.log('⚠️ No auth token available - making unauthenticated request (expected during signup)');
+      }
+      
+      const response = await fetch('/api/tailor-items', {
+        method: 'GET',
+        headers: headers,
+      });
+
+      console.log('📡 Response status:', response.status);
+
+      // If unauthorized and we're in signup mode, silently use fallback
+      if (response.status === 401 || response.status === 403) {
+        console.log('⚠️ API requires authentication - using fallback categories (expected during signup)');
+        setTailoringCategoryOptions(fallbackCategories);
+        setLoadingCategories(false);
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch tailoring categories: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ Tailoring categories data received:', data);
+
+      // Check if response indicates an error
+      if (data.success === false) {
+        // If it's an auth error, silently use fallback
+        if (data.message && (data.message.includes('token') || data.message.includes('Access') || data.message.includes('Unauthorized'))) {
+          console.log('⚠️ API requires authentication - using fallback categories (expected during signup)');
+          setTailoringCategoryOptions(fallbackCategories);
+          setLoadingCategories(false);
+          return;
+        }
+        throw new Error(data.message || 'Failed to fetch tailoring categories');
+      }
+
+      // Handle different response structures
+      // Expected: { success: true, data: [...] } or { data: [...] } or just [...]
+      const categories = data.data || data.items || data.categories || data || [];
+      
+      if (Array.isArray(categories) && categories.length > 0) {
+        // If categories are objects with name/id, extract the name
+        const categoryNames = categories.map(cat => {
+          if (typeof cat === 'string') {
+            return cat;
+          } else if (cat.name) {
+            return cat.name;
+          } else if (cat.categoryName) {
+            return cat.categoryName;
+          } else if (cat.itemName) {
+            return cat.itemName;
+          } else {
+            return String(cat);
+          }
+        });
+        
+        setTailoringCategoryOptions(categoryNames);
+        console.log('✅ Tailoring categories set:', categoryNames);
+      } else {
+        // If empty array or invalid format, use fallback
+        console.log('⚠️ Empty or invalid response - using fallback categories');
+        setTailoringCategoryOptions(fallbackCategories);
+      }
+    } catch (err) {
+      console.error('❌ Error fetching tailoring categories:', err);
+      
+      // During signup, auth errors are expected - don't show error message
+      const isAuthError = err.message && (
+        err.message.includes('Unauthorized') || 
+        err.message.includes('token') || 
+        err.message.includes('Access')
+      );
+      
+      if (!isAuthError) {
+        // Only show error for non-auth errors
+        setCategoriesError(err.message || 'Failed to load tailoring categories');
+      }
+      
+      // Always use fallback categories if API fails
+      setTailoringCategoryOptions(fallbackCategories);
+      console.log('✅ Using fallback categories');
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -111,6 +277,18 @@ const BusinessInfoForm = ({
     setFormData(prev => ({
       ...prev,
       serviceTypes: updatedServices
+    }));
+  };
+
+  const handleTailoringCategoryToggle = (category) => {
+    const updatedCategories = selectedTailoringCategories.includes(category)
+      ? selectedTailoringCategories.filter(c => c !== category)
+      : [...selectedTailoringCategories, category];
+    
+    setSelectedTailoringCategories(updatedCategories);
+    setFormData(prev => ({
+      ...prev,
+      tailoringCategories: updatedCategories
     }));
   };
 
@@ -197,6 +375,11 @@ const BusinessInfoForm = ({
       newErrors.serviceTypes = 'Please select at least one service';
     }
     
+    // Tailoring categories required only for Tailor roles
+    if (isTailorRole && selectedTailoringCategories.length === 0) {
+      newErrors.tailoringCategories = 'Please select at least one tailoring category';
+    }
+    
     // Optional email validation
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Enter a valid email address';
@@ -249,11 +432,13 @@ const BusinessInfoForm = ({
       const businessData = {
         ...formData,
         serviceTypes: JSON.stringify(selectedServices),
+        tailoringCategories: JSON.stringify(selectedTailoringCategories),
         portfolioPhotos: JSON.stringify(formData.portfolioPhotos)
       };
       
       console.log('🏢 BusinessInfoForm - Submitting business data:', businessData);
       console.log('📋 Selected services:', selectedServices);
+      console.log('👔 Selected tailoring categories:', selectedTailoringCategories);
       console.log('🖼️ Logo file:', logoFile);
       console.log('🖼️ Logo preview:', logoPreview ? 'Present' : 'None');
       console.log('📝 Edit mode:', isEditMode);
@@ -636,6 +821,55 @@ const BusinessInfoForm = ({
                   ))}
                 </div>
                 {errors.serviceTypes && <span className="error-message">{errors.serviceTypes}</span>}
+              </div>
+
+              <div className="input-group">
+                <label className="service-label">Tailoring Categories *</label>
+                {loadingCategories ? (
+                  <div style={{ 
+                    padding: '1rem', 
+                    textAlign: 'center', 
+                    color: '#666',
+                    fontSize: '0.9rem' 
+                  }}>
+                    Loading categories...
+                  </div>
+                ) : categoriesError && !categoriesError.includes('Unauthorized') && !categoriesError.includes('token') && !categoriesError.includes('Access') ? (
+                  <div style={{ 
+                    padding: '1rem', 
+                    backgroundColor: '#fff3cd',
+                    border: '1px solid #ffc107',
+                    borderRadius: '8px',
+                    color: '#856404',
+                    fontSize: '0.9rem',
+                    marginBottom: '0.5rem'
+                  }}>
+                    ⚠️ {categoriesError}. Using default categories.
+                  </div>
+                ) : tailoringCategoryOptions.length === 0 ? (
+                  <div style={{ 
+                    padding: '1rem', 
+                    textAlign: 'center', 
+                    color: '#999',
+                    fontSize: '0.9rem' 
+                  }}>
+                    No categories available
+                  </div>
+                ) : (
+                  <div className="service-chips">
+                    {tailoringCategoryOptions.map((category) => (
+                      <button
+                        key={category}
+                        type="button"
+                        className={`service-chip ${selectedTailoringCategories.includes(category) ? 'selected' : ''}`}
+                        onClick={() => handleTailoringCategoryToggle(category)}
+                      >
+                        {category}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {errors.tailoringCategories && <span className="error-message">{errors.tailoringCategories}</span>}
               </div>
 
               <div className="input-group">

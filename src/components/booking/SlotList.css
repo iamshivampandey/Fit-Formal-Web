@@ -1,0 +1,38 @@
+.slot-list-container {
+  width: 100%;
+}
+
+.slot-list-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1c1c1c;
+  margin: 0 0 0.5rem 0;
+  font-family: 'Gilroy', sans-serif;
+}
+
+.slot-list-subtitle {
+  font-size: 0.875rem;
+  color: #8E8E93;
+  margin: 0 0 1.25rem 0;
+  font-family: 'Gilroy', sans-serif;
+}
+
+.slot-list-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .slot-list-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .slot-list-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+

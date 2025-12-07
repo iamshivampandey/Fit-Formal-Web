@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import RoleSelection from './RoleSelection';
 import SellerTypeSelection from './SellerTypeSelection';
 import SignupForm from './SignupForm';
@@ -9,11 +9,81 @@ const MultiStepSignup = ({
   onSignupComplete,
   onShowToast
 }) => {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [selectedRole, setSelectedRole] = useState(null);
-  const [selectedSellerType, setSelectedSellerType] = useState(null);
-  const [signupFormData, setSignupFormData] = useState(null);
-  const [businessInfoData, setBusinessInfoData] = useState(null);
+  // Initialize state from localStorage to persist across page refreshes
+  const [currentStep, setCurrentStep] = useState(() => {
+    const savedStep = localStorage.getItem('signupStep');
+    return savedStep ? parseInt(savedStep, 10) : 1;
+  });
+  const [selectedRole, setSelectedRole] = useState(() => {
+    const savedRole = localStorage.getItem('selectedRole');
+    return savedRole || null;
+  });
+  const [selectedSellerType, setSelectedSellerType] = useState(() => {
+    const savedType = localStorage.getItem('selectedSellerType');
+    return savedType || null;
+  });
+  const [signupFormData, setSignupFormData] = useState(() => {
+    const savedData = localStorage.getItem('signupFormData');
+    return savedData ? JSON.parse(savedData) : null;
+  });
+  const [businessInfoData, setBusinessInfoData] = useState(() => {
+    const savedData = localStorage.getItem('businessInfoData');
+    return savedData ? JSON.parse(savedData) : null;
+  });
+
+  // Save state to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('signupStep', currentStep.toString());
+  }, [currentStep]);
+
+  useEffect(() => {
+    if (selectedRole) {
+      localStorage.setItem('selectedRole', selectedRole);
+    } else {
+      localStorage.removeItem('selectedRole');
+    }
+  }, [selectedRole]);
+
+  useEffect(() => {
+    if (selectedSellerType) {
+      localStorage.setItem('selectedSellerType', selectedSellerType);
+    } else {
+      localStorage.removeItem('selectedSellerType');
+    }
+  }, [selectedSellerType]);
+
+  useEffect(() => {
+    if (signupFormData) {
+      localStorage.setItem('signupFormData', JSON.stringify(signupFormData));
+    } else {
+      localStorage.removeItem('signupFormData');
+    }
+  }, [signupFormData]);
+
+  useEffect(() => {
+    if (businessInfoData) {
+      localStorage.setItem('businessInfoData', JSON.stringify(businessInfoData));
+    } else {
+      localStorage.removeItem('businessInfoData');
+    }
+  }, [businessInfoData]);
+
+  // Clear signup-related localStorage when signup is completed
+  const clearSignupState = () => {
+    localStorage.removeItem('signupStep');
+    localStorage.removeItem('selectedRole');
+    localStorage.removeItem('selectedSellerType');
+    localStorage.removeItem('signupFormData');
+    localStorage.removeItem('businessInfoData');
+  };
+
+  const handleBackToLogin = () => {
+    // Clear signup state when going back to login
+    clearSignupState();
+    if (onBackToLogin) {
+      onBackToLogin();
+    }
+  };
 
   const handleRoleSelect = (role) => {
     setSelectedRole(role);
@@ -34,6 +104,7 @@ const MultiStepSignup = ({
   const handleBackFromSellerType = () => {
     setCurrentStep(1);
     setSelectedRole(null);
+    setSelectedSellerType(null);
   };
 
   const handleSignupFormComplete = (data) => {
@@ -50,6 +121,9 @@ const MultiStepSignup = ({
         ...data,
         role: selectedRole
       };
+      
+      // Clear signup state after successful signup
+      clearSignupState();
       
       if (onSignupComplete) {
         onSignupComplete(finalData);
@@ -88,6 +162,9 @@ const MultiStepSignup = ({
     console.log('📦 MultiStepSignup - Complete data being sent:', completeData);
     console.log('🏢 MultiStepSignup - Business info included?', !!completeData.businessInfo);
     
+    // Clear signup state after successful signup
+    clearSignupState();
+    
     if (onSignupComplete) {
       await onSignupComplete(completeData);
     }
@@ -98,7 +175,7 @@ const MultiStepSignup = ({
       {currentStep === 1 && (
         <RoleSelection 
           onRoleSelect={handleRoleSelect}
-          onBackToLogin={onBackToLogin}
+          onBackToLogin={handleBackToLogin}
         />
       )}
 

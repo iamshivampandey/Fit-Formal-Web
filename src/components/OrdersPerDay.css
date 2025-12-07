@@ -1,0 +1,469 @@
+@import url('https://fonts.cdnfonts.com/css/gilroy-bold');
+
+.orders-per-day-page {
+  min-height: 100vh;
+  background-color: #f5f5f7;
+  font-family: 'Gilroy', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+/* Header */
+.orders-per-day-header {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e5e5ea;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.orders-per-day-header-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.5rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.orders-per-day-header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.orders-per-day-back-btn {
+  padding: 0.5rem;
+  background: none;
+  border: none;
+  color: #654321;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.orders-per-day-back-btn:hover {
+  background-color: #f0f0f0;
+}
+
+.orders-per-day-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #000000;
+  margin: 0;
+}
+
+.orders-per-day-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.orders-per-day-date-range-select {
+  padding: 0.625rem 1rem;
+  border: 2px solid #e5e5ea;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-family: 'Gilroy', sans-serif;
+  color: #1c1c1c;
+  background-color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.orders-per-day-date-range-select:focus {
+  outline: none;
+  border-color: #654321;
+  box-shadow: 0 0 0 3px rgba(101, 67, 33, 0.1);
+}
+
+/* Main Content */
+.orders-per-day-main {
+  padding: 2rem;
+}
+
+.orders-per-day-container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Loading State */
+.orders-per-day-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  gap: 1rem;
+}
+
+.orders-per-day-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #e5e5ea;
+  border-top-color: #654321;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.orders-per-day-loading p {
+  color: #8e8e93;
+  font-size: 1rem;
+  margin: 0;
+}
+
+/* Table */
+.orders-per-day-table-wrapper {
+  background: #ffffff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+}
+
+.orders-per-day-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.orders-per-day-table thead {
+  background-color: #f9f9f9;
+  border-bottom: 2px solid #e5e5ea;
+}
+
+.orders-per-day-table th {
+  padding: 1rem 1.5rem;
+  text-align: left;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #8e8e93;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.orders-per-day-table tbody tr {
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.2s ease;
+}
+
+.orders-per-day-table tbody tr:hover {
+  background-color: #f9f9f9;
+}
+
+.orders-per-day-table tbody tr.selected {
+  background-color: #fff8f0;
+}
+
+.orders-per-day-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.orders-per-day-table td {
+  padding: 1.25rem 1.5rem;
+  vertical-align: middle;
+}
+
+/* Date Column */
+.orders-per-day-col-date {
+  width: 20%;
+}
+
+.orders-per-day-date-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.orders-per-day-date-main {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1c1c1c;
+}
+
+.orders-per-day-date-sub {
+  font-size: 0.75rem;
+  color: #8e8e93;
+}
+
+/* Orders Column */
+.orders-per-day-col-orders {
+  width: 15%;
+}
+
+.orders-per-day-orders-cell {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.orders-per-day-orders-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #654321;
+}
+
+.orders-per-day-orders-label {
+  font-size: 0.875rem;
+  color: #8e8e93;
+}
+
+/* Status Column */
+.orders-per-day-col-status {
+  width: 15%;
+}
+
+.orders-per-day-status-badge {
+  display: inline-block;
+  padding: 0.375rem 0.875rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.orders-per-day-status-badge.active {
+  background-color: #e8f5e9;
+  color: #4caf50;
+}
+
+.orders-per-day-status-badge.inactive {
+  background-color: #ffebee;
+  color: #f44336;
+}
+
+/* Toggle Column */
+.orders-per-day-col-toggle {
+  width: 20%;
+}
+
+.orders-per-day-toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 56px;
+  height: 32px;
+}
+
+.orders-per-day-toggle-input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.orders-per-day-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #c7c7cc;
+  transition: 0.3s;
+  border-radius: 32px;
+}
+
+.orders-per-day-toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 24px;
+  width: 24px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.orders-per-day-toggle-input:checked + .orders-per-day-toggle-slider {
+  background-color: #654321;
+}
+
+.orders-per-day-toggle-input:checked + .orders-per-day-toggle-slider:before {
+  transform: translateX(24px);
+}
+
+.orders-per-day-toggle-input:focus + .orders-per-day-toggle-slider {
+  box-shadow: 0 0 0 3px rgba(101, 67, 33, 0.2);
+}
+
+/* Actions Column */
+.orders-per-day-col-actions {
+  width: 20%;
+}
+
+.orders-per-day-view-btn {
+  padding: 0.5rem 1rem;
+  background-color: #654321;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Gilroy', sans-serif;
+}
+
+.orders-per-day-view-btn:hover {
+  background-color: #8B5E3C;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(101, 67, 33, 0.2);
+}
+
+.orders-per-day-view-btn:active {
+  transform: translateY(0);
+}
+
+/* Details Section */
+.orders-per-day-details {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.orders-per-day-details-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1c1c1c;
+  margin: 0 0 1.5rem 0;
+}
+
+.orders-per-day-orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.orders-per-day-order-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.orders-per-day-order-item:hover {
+  background-color: #f0f0f0;
+}
+
+.orders-per-day-order-info {
+  flex: 1;
+}
+
+.orders-per-day-order-id {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1c1c1c;
+  margin: 0 0 0.25rem 0;
+}
+
+.orders-per-day-order-customer {
+  font-size: 0.875rem;
+  color: #8e8e93;
+  margin: 0;
+}
+
+.orders-per-day-order-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.orders-per-day-order-status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.orders-per-day-order-status-pending {
+  background-color: #fff3e0;
+  color: #ff9800;
+}
+
+.orders-per-day-order-status-confirmed {
+  background-color: #e3f2fd;
+  color: #2196f3;
+}
+
+.orders-per-day-order-status-in-progress {
+  background-color: #e8f5e9;
+  color: #4caf50;
+}
+
+.orders-per-day-order-amount {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #654321;
+}
+
+.orders-per-day-no-orders {
+  text-align: center;
+  color: #8e8e93;
+  font-size: 1rem;
+  padding: 2rem;
+  margin: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .orders-per-day-table {
+    font-size: 0.875rem;
+  }
+
+  .orders-per-day-table th,
+  .orders-per-day-table td {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .orders-per-day-main {
+    padding: 1rem;
+  }
+
+  .orders-per-day-header-content {
+    padding: 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .orders-per-day-table-wrapper {
+    overflow-x: auto;
+  }
+
+  .orders-per-day-table {
+    min-width: 800px;
+  }
+
+  .orders-per-day-details {
+    padding: 1.5rem;
+  }
+
+  .orders-per-day-order-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .orders-per-day-order-meta {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+
+

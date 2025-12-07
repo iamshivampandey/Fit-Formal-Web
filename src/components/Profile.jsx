@@ -53,6 +53,7 @@ const Profile = ({ user, onLogout, onBack, onShowToast }) => {
     gpsLongitude: '',
     workingCity: '',
     serviceTypes: '',
+    tailoringCategories: '',
     specialization: '',
     yearsOfExperience: '',
     portfolioPhotos: '',
@@ -178,6 +179,26 @@ const Profile = ({ user, onLogout, onBack, onShowToast }) => {
         }
       };
       
+      // Convert comma-separated strings to JSON arrays for serviceTypes and tailoringCategories
+      const convertToJsonArray = (value) => {
+        if (!value) return JSON.stringify([]);
+        if (typeof value === 'string') {
+          // If it's already a JSON string, return as is
+          try {
+            JSON.parse(value);
+            return value;
+          } catch (e) {
+            // If it's a comma-separated string, convert to JSON array
+            const items = value.split(',').map(item => item.trim()).filter(item => item);
+            return JSON.stringify(items);
+          }
+        }
+        if (Array.isArray(value)) {
+          return JSON.stringify(value);
+        }
+        return JSON.stringify([]);
+      };
+      
       const updatePayload = {
         userId: businessData.userId || user.id,
         businessName: businessData.businessName,
@@ -192,7 +213,8 @@ const Profile = ({ user, onLogout, onBack, onShowToast }) => {
         gpsLatitude: businessData.gpsLatitude,
         gpsLongitude: businessData.gpsLongitude,
         workingCity: businessData.workingCity,
-        serviceTypes: businessData.serviceTypes,
+        serviceTypes: convertToJsonArray(businessData.serviceTypes),
+        tailoringCategories: convertToJsonArray(businessData.tailoringCategories),
         specialization: businessData.specialization,
         yearsOfExperience: businessData.yearsOfExperience,
         portfolioPhotos: businessData.portfolioPhotos,
@@ -307,15 +329,35 @@ const Profile = ({ user, onLogout, onBack, onShowToast }) => {
         console.log('📡 Business API response:', data);
         
         if (response.ok && data.success && data.data) {
-          // Parse serviceTypes if it's a JSON string
-          let serviceTypes = data.data.serviceTypes;
-          if (typeof serviceTypes === 'string') {
+          // Helper function to decode HTML entities and parse JSON
+          const parseJsonString = (jsonString) => {
+            if (!jsonString) return [];
+            if (Array.isArray(jsonString)) return jsonString;
+            if (typeof jsonString !== 'string') return [];
+            
             try {
-              serviceTypes = JSON.parse(serviceTypes);
+              // Decode HTML entities first
+              const decoded = jsonString
+                .replace(/&quot;/g, '"')
+                .replace(/&#39;/g, "'")
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>');
+              
+              // Parse the JSON
+              const parsed = JSON.parse(decoded);
+              return Array.isArray(parsed) ? parsed : [];
             } catch (e) {
-              console.warn('Failed to parse serviceTypes:', e);
+              console.warn('Failed to parse JSON string:', e);
+              return [];
             }
-          }
+          };
+          
+          // Parse serviceTypes if it's a JSON string
+          let serviceTypes = parseJsonString(data.data.serviceTypes);
+          
+          // Parse tailoringCategories if it's a JSON string
+          let tailoringCategories = parseJsonString(data.data.tailoringCategories);
           
           // Parse portfolioPhotos if it's a JSON string
           let portfolioPhotos = data.data.portfolioPhotos;
@@ -357,7 +399,8 @@ const Profile = ({ user, onLogout, onBack, onShowToast }) => {
             gpsLatitude: data.data.gpsLatitude || '',
             gpsLongitude: data.data.gpsLongitude || '',
             workingCity: data.data.workingCity || '',
-            serviceTypes: Array.isArray(serviceTypes) ? serviceTypes.join(', ') : (serviceTypes || ''),
+            serviceTypes: Array.isArray(serviceTypes) ? serviceTypes.map(s => String(s).trim()).filter(s => s).join(', ') : (serviceTypes || ''),
+            tailoringCategories: Array.isArray(tailoringCategories) ? tailoringCategories.map(c => String(c).trim()).filter(c => c).join(', ') : (tailoringCategories || ''),
             specialization: data.data.specialization || '',
             yearsOfExperience: data.data.yearsOfExperience || '',
             portfolioPhotos: Array.isArray(portfolioPhotos) ? portfolioPhotos.join(', ') : (portfolioPhotos || ''),
@@ -1180,6 +1223,20 @@ const Profile = ({ user, onLogout, onBack, onShowToast }) => {
                         disabled={!isEditingBusiness}
                       />
                       <span className="input-hint">Comma-separated list of services</span>
+                    </div>
+
+                    <div className="form-group full-width">
+                      <label className="form-label">Tailoring Categories</label>
+                      <input
+                        type="text"
+                        name="tailoringCategories"
+                        className="form-input"
+                        placeholder="e.g., Pant, Shirt, Suit (2-piece)"
+                        value={businessData.tailoringCategories}
+                        onChange={handleBusinessInputChange}
+                        disabled={!isEditingBusiness}
+                      />
+                      <span className="input-hint">Comma-separated list of tailoring categories</span>
                     </div>
 
                     <div className="form-group full-width">

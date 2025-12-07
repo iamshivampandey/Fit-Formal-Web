@@ -6,6 +6,9 @@ import Toast from './components/Toast'
 import Home from './components/Home'
 import ProductManagement from './components/ProductManagement'
 import Profile from './components/Profile'
+import TailorsListPage from './components/TailorsListPage'
+import OrdersPerDay from './components/OrdersPerDay'
+import BookingPage from './components/booking/BookingPage'
 import './App.css'
 
 function App() {
@@ -15,13 +18,49 @@ function App() {
     // Check if user is logged in from localStorage
     const savedUser = localStorage.getItem('user');
     const savedView = localStorage.getItem('currentView');
+    const hasSignupState = localStorage.getItem('signupStep'); // Check if signup flow is in progress
     
-    if (savedUser && savedView && savedView !== 'login' && savedView !== 'signup') {
-      return savedView; // Restore last view if user was logged in
+    // Only restore signup view if:
+    // 1. No user is logged in
+    // 2. The saved view is 'signup'
+    // 3. There's actual signup state (signupStep exists)
+    if (!savedUser && savedView === 'signup' && hasSignupState) {
+      return 'signup';
     }
+    
+    // Restore other views only if user is logged in
+    if (savedUser && savedView && savedView !== 'login' && savedView !== 'signup') {
+      return savedView;
+    }
+    
+    // If user is logged in but view is signup, clear signup state and go to home
+    if (savedUser && savedView === 'signup') {
+      // Clear any leftover signup state
+      localStorage.removeItem('signupStep');
+      localStorage.removeItem('selectedRole');
+      localStorage.removeItem('selectedSellerType');
+      localStorage.removeItem('signupFormData');
+      localStorage.removeItem('businessInfoData');
+      return 'home';
+    }
+    
     return 'login';
   });
   const [toast, setToast] = useState(null);
+  const [bookingData, setBookingData] = useState(() => {
+    // Restore bookingData from localStorage on mount
+    const savedBookingData = localStorage.getItem('bookingData');
+    if (savedBookingData) {
+      try {
+        return JSON.parse(savedBookingData);
+      } catch (e) {
+        console.error('Error parsing saved bookingData:', e);
+        localStorage.removeItem('bookingData');
+        return null;
+      }
+    }
+    return null;
+  });
   const [user, setUser] = useState(() => {
     // Restore user from localStorage on mount
     const savedUser = localStorage.getItem('user');
@@ -52,16 +91,72 @@ function App() {
   useEffect(() => {
     if (user) {
       localStorage.setItem('user', JSON.stringify(user));
+      // Clear signup state when user logs in (signup is complete)
+      if (currentView !== 'signup') {
+        localStorage.removeItem('signupStep');
+        localStorage.removeItem('selectedRole');
+        localStorage.removeItem('selectedSellerType');
+        localStorage.removeItem('signupFormData');
+        localStorage.removeItem('businessInfoData');
+      }
     } else {
       localStorage.removeItem('user');
-      localStorage.removeItem('currentView');
+      // Only clear currentView if it's not signup (to preserve signup flow)
+      const savedView = localStorage.getItem('currentView');
+      if (savedView !== 'signup') {
+        localStorage.removeItem('currentView');
+      }
     }
-  }, [user]);
+  }, [user, currentView]);
 
-  // Save currentView to localStorage whenever it changes (except for login/signup)
+  // Save bookingData to localStorage whenever it changes
   useEffect(() => {
-    if (user && currentView !== 'login' && currentView !== 'signup') {
+    if (bookingData) {
+      localStorage.setItem('bookingData', JSON.stringify(bookingData));
+    } else {
+      // Only remove if we're not on the booking page (to avoid clearing during navigation)
+      if (currentView !== 'booking') {
+        localStorage.removeItem('bookingData');
+      }
+    }
+  }, [bookingData, currentView]);
+
+  // Save currentView to localStorage whenever it changes
+  useEffect(() => {
+    // Save signup view even when user is not logged in
+    if (currentView === 'signup') {
       localStorage.setItem('currentView', currentView);
+    }
+    // Save other views only when user is logged in (except login)
+    else if (user && currentView !== 'login') {
+      localStorage.setItem('currentView', currentView);
+      // Clear signup state when navigating away from signup to other pages
+      localStorage.removeItem('signupStep');
+      localStorage.removeItem('selectedRole');
+      localStorage.removeItem('selectedSellerType');
+      localStorage.removeItem('signupFormData');
+      localStorage.removeItem('businessInfoData');
+      
+      // Clear bookingData when navigating away from booking page
+      if (currentView !== 'booking') {
+        localStorage.removeItem('bookingData');
+      }
+      
+      // Clear selectedTailor when navigating away from tailors page
+      if (currentView !== 'tailors') {
+        localStorage.removeItem('selectedTailor');
+      }
+    }
+    // Clear currentView and signup state when going back to login
+    else if (currentView === 'login') {
+      localStorage.removeItem('currentView');
+      localStorage.removeItem('signupStep');
+      localStorage.removeItem('selectedRole');
+      localStorage.removeItem('selectedSellerType');
+      localStorage.removeItem('signupFormData');
+      localStorage.removeItem('businessInfoData');
+      localStorage.removeItem('bookingData');
+      localStorage.removeItem('selectedTailor');
     }
   }, [currentView, user]);
 
@@ -74,6 +169,9 @@ function App() {
     const roles = response.data?.roles || response.roles || [];
     const token = response.data?.token || response.token;
     
+    // Get BusinessId from userData (API returns it as BusinessId with capital B)
+    const businessId = userData?.BusinessId || userData?.businessId;
+    
     // Get the first role (primary role)
     const primaryRole = roles[0];
     
@@ -81,6 +179,7 @@ function App() {
     console.log('🎭 Roles:', roles);
     console.log('🎭 Primary Role:', primaryRole);
     console.log('🔑 Token:', token ? 'Received' : 'Not found');
+    console.log('🏢 BusinessId:', businessId);
     
     // Combine user data with role information
     const userWithRole = {
@@ -88,11 +187,20 @@ function App() {
       roleId: primaryRole?.id,
       roleName: primaryRole?.name,
       roles: roles,
-      token: token
+      token: token,
+      businessId: businessId, // Normalize to lowercase for consistency
+      BusinessId: businessId // Keep original case for compatibility
     };
     
     console.log('💾 Storing combined user data:', userWithRole);
     setUser(userWithRole);
+    
+    // Clear any leftover signup state after successful login
+    localStorage.removeItem('signupStep');
+    localStorage.removeItem('selectedRole');
+    localStorage.removeItem('selectedSellerType');
+    localStorage.removeItem('signupFormData');
+    localStorage.removeItem('businessInfoData');
     
     // Show success toast
     showToast(`Login successful! Welcome back, ${userData.firstName}!`, 'success');
@@ -129,9 +237,12 @@ function App() {
     // Clear user data from localStorage
     localStorage.removeItem('user');
     localStorage.removeItem('currentView');
+    localStorage.removeItem('bookingData');
+    localStorage.removeItem('selectedTailor');
     
     // Clear user data from state
     setUser(null);
+    setBookingData(null);
     
     // Show toast
     showToast('You have been logged out successfully.', 'success');
@@ -242,8 +353,39 @@ function App() {
     setCurrentView('profile');
   };
 
+  const handleNavigateToTailors = () => {
+    setCurrentView('tailors');
+  };
+
+  const handleNavigateToOrdersPerDay = () => {
+    setCurrentView('ordersPerDay');
+  };
+
+  const handleNavigateToBooking = (tailorData) => {
+    setBookingData(tailorData);
+    // Save bookingData to localStorage
+    localStorage.setItem('bookingData', JSON.stringify(tailorData));
+    setCurrentView('booking');
+  };
+
+  const handleBackFromBooking = () => {
+    setBookingData(null);
+    // Clear bookingData from localStorage
+    localStorage.removeItem('bookingData');
+    setCurrentView('tailors');
+  };
+
   // If user is not logged in, force login view (unless on signup)
-  const viewToRender = !user && currentView !== 'signup' ? 'login' : currentView;
+  let viewToRender = !user && currentView !== 'signup' ? 'login' : currentView;
+  
+  // If booking view is requested but bookingData is missing, redirect to tailors
+  if (viewToRender === 'booking' && !bookingData) {
+    viewToRender = 'tailors';
+    // Clear the invalid booking view from localStorage
+    if (user) {
+      localStorage.setItem('currentView', 'tailors');
+    }
+  }
 
   return (
     <div className="App">
@@ -255,6 +397,8 @@ function App() {
           onLogout={handleLogout}
           onNavigateToProducts={handleNavigateToProducts}
           onNavigateToProfile={handleNavigateToProfile}
+          onNavigateToTailors={handleNavigateToTailors}
+          onNavigateToOrdersPerDay={handleNavigateToOrdersPerDay}
         />
       ) : viewToRender === 'products' ? (
         <ProductManagement
@@ -267,6 +411,27 @@ function App() {
           onLogout={handleLogout}
           onBack={handleNavigateToDashboard}
           onShowToast={showToast}
+        />
+      ) : viewToRender === 'tailors' ? (
+        <TailorsListPage
+          user={user}
+          onBack={handleNavigateToDashboard}
+          onNavigateToBooking={handleNavigateToBooking}
+        />
+      ) : viewToRender === 'booking' && bookingData ? (
+        <BookingPage
+          tailorName={bookingData.name}
+          tailorServices={bookingData.services}
+          tailoringCategories={bookingData.tailoringCategories}
+          businessId={bookingData.businessId}
+          user={user}
+          onBack={handleBackFromBooking}
+        />
+      ) : viewToRender === 'ordersPerDay' ? (
+        <OrdersPerDay
+          user={user}
+          businessId={user?.businessId}
+          onBack={handleNavigateToDashboard}
         />
       ) : viewToRender === 'login' ? (
         <LoginForm

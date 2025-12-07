@@ -1,0 +1,259 @@
+.slot-confirm-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+
+.slot-confirm-drawer {
+  background: #ffffff;
+  border-radius: 24px 24px 0 0;
+  width: 100%;
+  max-width: 500px;
+  padding: 1.5rem;
+  animation: slideUpDrawer 0.3s ease;
+  font-family: 'Gilroy', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+@keyframes slideUpDrawer {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.slot-confirm-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.slot-confirm-drawer-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1c1c1c;
+  margin: 0;
+  font-family: 'Gilroy', sans-serif;
+}
+
+.slot-confirm-drawer-close {
+  padding: 0.5rem;
+  background: none;
+  border: none;
+  color: #8e8e93;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.slot-confirm-drawer-close:hover {
+  background-color: #f0f0f0;
+  color: #1c1c1c;
+}
+
+.slot-confirm-selected-slot {
+  background-color: #f8f8f8;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.slot-confirm-slot-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.slot-confirm-icon-wrapper {
+  background-color: #654321;
+  color: #ffffff;
+  padding: 0.75rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slot-confirm-slot-details {
+  flex: 1;
+}
+
+.slot-confirm-slot-label {
+  font-size: 0.875rem;
+  color: #8e8e93;
+  margin: 0 0 0.25rem 0;
+}
+
+.slot-confirm-slot-time {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1c1c1c;
+  margin: 0;
+  font-family: 'Gilroy', sans-serif;
+}
+
+.slot-confirm-travel-time {
+  margin-bottom: 1.5rem;
+}
+
+.slot-confirm-travel-label {
+  font-size: 0.875rem;
+  color: #8e8e93;
+  margin: 0 0 0.25rem 0;
+}
+
+.slot-confirm-travel-value {
+  color: #1c1c1c;
+  font-weight: 500;
+  font-size: 0.9375rem;
+}
+
+.slot-confirm-mode-section {
+  margin-bottom: 1.5rem;
+}
+
+.slot-confirm-mode-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1c1c1c;
+  margin: 0 0 0.75rem 0;
+  font-family: 'Gilroy', sans-serif;
+}
+
+.slot-confirm-mode-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.slot-confirm-mode-option {
+  width: 100%;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 2px solid;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: #ffffff;
+}
+
+.slot-confirm-mode-option-unselected {
+  border-color: #e8e8e8;
+}
+
+.slot-confirm-mode-option-unselected:hover {
+  border-color: #d0d0d0;
+}
+
+.slot-confirm-mode-option-selected {
+  border-color: #654321;
+  background-color: #faf8f6;
+}
+
+.slot-confirm-mode-option-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.slot-confirm-mode-option-text {
+  flex: 1;
+}
+
+.slot-confirm-mode-option-name {
+  font-weight: 600;
+  color: #1c1c1c;
+  margin: 0 0 0.25rem 0;
+  font-size: 0.9375rem;
+  font-family: 'Gilroy', sans-serif;
+}
+
+.slot-confirm-mode-option-desc {
+  font-size: 0.875rem;
+  color: #8e8e93;
+  margin: 0;
+}
+
+.slot-confirm-check {
+  width: 20px;
+  height: 20px;
+  background-color: #654321;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.slot-confirm-check svg {
+  width: 12px;
+  height: 12px;
+  color: #ffffff;
+}
+
+.slot-confirm-info-box {
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.slot-confirm-info-text {
+  font-size: 0.875rem;
+  color: #1e40af;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.slot-confirm-continue-button {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: 'Gilroy', sans-serif;
+  border: none;
+}
+
+.slot-confirm-continue-button-enabled {
+  background: linear-gradient(135deg, #654321 0%, #7d5a2e 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(101, 67, 33, 0.25);
+}
+
+.slot-confirm-continue-button-enabled:hover {
+  background: linear-gradient(135deg, #7d5a2e 0%, #8B6A3F 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(101, 67, 33, 0.4);
+}
+
+.slot-confirm-continue-button-disabled {
+  background-color: #e8e8e8;
+  color: #8e8e93;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .slot-confirm-drawer {
+    padding: 1.25rem;
+  }
+}
+
+
+
+

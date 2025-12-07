@@ -1,0 +1,153 @@
+.date-picker-container {
+  width: 100%;
+}
+
+.date-picker-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1c1c1c;
+  margin: 0 0 0.75rem 0;
+  font-family: 'Gilroy', sans-serif;
+}
+
+.date-picker-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.date-picker-month-year {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1c1c1c;
+  font-family: 'Gilroy', sans-serif;
+}
+
+.date-picker-nav-button {
+  padding: 0.25rem;
+  background: none;
+  border: none;
+  color: #1c1c1c;
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.date-picker-nav-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.date-picker-nav-button:hover:not(:disabled) {
+  background-color: #F2F2F7;
+  color: #654321;
+}
+
+.date-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+}
+
+.date-picker-day-header {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #8E8E93;
+  padding: 0.375rem 0;
+  font-family: 'Gilroy', sans-serif;
+}
+
+.date-picker-day {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  background: none;
+  color: #1c1c1c;
+  font-family: 'Gilroy', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+}
+
+.date-picker-day:hover:not(.date-picker-day-disabled):not(.date-picker-day-selected) {
+  background-color: #F2F2F7;
+  color: #654321;
+}
+
+.date-picker-day-today {
+  background-color: #F2F2F7;
+  color: #654321;
+  font-weight: 600;
+  border: 1px solid #E5E5EA;
+}
+
+.date-picker-day-selected {
+  background-color: #654321;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(101, 67, 33, 0.3);
+}
+
+.date-picker-day-disabled {
+  color: #d0d0d0;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.date-picker-day-closed {
+  background-color: #ffebee !important;
+  color: #d32f2f !important;
+  cursor: not-allowed !important;
+  opacity: 0.7;
+  font-weight: 500;
+}
+
+.date-picker-day-closed:hover {
+  background-color: #ffcdd2 !important;
+}
+
+.date-picker-empty {
+  aspect-ratio: 1;
+}
+
+@media (max-width: 768px) {
+  .date-picker-title {
+    font-size: 0.9375rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .date-picker-navigation {
+    margin-bottom: 0.5rem;
+  }
+
+  .date-picker-month-year {
+    font-size: 0.875rem;
+  }
+
+  .date-picker-grid {
+    gap: 0.2rem;
+  }
+
+  .date-picker-day-header {
+    font-size: 0.6875rem;
+    padding: 0.25rem 0;
+  }
+
+  .date-picker-day {
+    font-size: 0.75rem;
+    min-height: 28px;
+    border-radius: 6px;
+  }
+}
+
+
