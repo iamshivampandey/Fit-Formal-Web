@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import './Profile.css';
+import BusinessInfoForm from './BusinessInfoForm';
 
 const Profile = ({ user, onLogout, onBack, onShowToast }) => {
   const [activeSection, setActiveSection] = useState('personal');
@@ -60,7 +61,8 @@ const Profile = ({ user, onLogout, onBack, onShowToast }) => {
     certifications: '',
     openingTime: '',
     closingTime: '',
-    weeklyOff: ''
+    weeklyOff: '',
+    tailorItemPrices: [] // Add tailorItemPrices to store the full array
   });
 
   const handleInputChange = (e) => {
@@ -356,8 +358,17 @@ const Profile = ({ user, onLogout, onBack, onShowToast }) => {
           // Parse serviceTypes if it's a JSON string
           let serviceTypes = parseJsonString(data.data.serviceTypes);
           
-          // Parse tailoringCategories if it's a JSON string
-          let tailoringCategories = parseJsonString(data.data.tailoringCategories);
+          // Handle tailorItemPrices - extract Name fields from the array
+          let tailoringCategories = [];
+          if (data.data.tailorItemPrices && Array.isArray(data.data.tailorItemPrices)) {
+            // Extract Name from each item in tailorItemPrices
+            tailoringCategories = data.data.tailorItemPrices
+              .map(item => item.Name || item.name)
+              .filter(name => name); // Remove any null/undefined values
+          } else {
+            // Fallback to parsing tailoringCategories if it exists
+            tailoringCategories = parseJsonString(data.data.tailoringCategories);
+          }
           
           // Parse portfolioPhotos if it's a JSON string
           let portfolioPhotos = data.data.portfolioPhotos;
@@ -407,7 +418,8 @@ const Profile = ({ user, onLogout, onBack, onShowToast }) => {
             certifications: data.data.certifications || '',
             openingTime: formatTime(data.data.openingTime),
             closingTime: formatTime(data.data.closingTime),
-            weeklyOff: data.data.weeklyOff || ''
+            weeklyOff: data.data.weeklyOff || '',
+            tailorItemPrices: data.data.tailorItemPrices || [] // Store the full tailorItemPrices array
           });
           console.log('✅ Business data loaded successfully');
           console.log('📊 Loaded business data:', {
@@ -870,40 +882,77 @@ const Profile = ({ user, onLogout, onBack, onShowToast }) => {
             {/* Business Information Section (Seller only) */}
             {activeSection === 'business' && showBusinessInfo && (
               <div className="content-section">
-                <div className="section-header">
-                  <h3 className="section-title">Business Information</h3>
-                  {!isEditingBusiness ? (
-                    <button className="edit-btn" onClick={() => setIsEditingBusiness(true)}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                      </svg>
-                      Edit
-                    </button>
-                  ) : (
-                    <div className="edit-actions">
-                      <button className="cancel-btn" onClick={handleBusinessCancel} disabled={isSubmittingBusiness}>
-                        Cancel
-                      </button>
-                      <button className="save-btn" onClick={handleBusinessSave} disabled={isSubmittingBusiness}>
+                {isEditingBusiness ? (
+                  // Use BusinessInfoForm for editing (supports tailorItemPrices with chips and details)
+                  <BusinessInfoForm
+                    initialData={{
+                      businessName: businessData.businessName,
+                      ownerName: businessData.ownerName,
+                      businessLogo: businessData.businessLogo,
+                      businessDescription: businessData.businessDescription,
+                      mobileNumber: businessData.mobileNumber,
+                      alternateNumber: businessData.alternateNumber,
+                      email: businessData.email,
+                      shopAddress: businessData.shopAddress,
+                      googleMapLink: businessData.googleMapLink,
+                      gpsLatitude: businessData.gpsLatitude,
+                      gpsLongitude: businessData.gpsLongitude,
+                      workingCity: businessData.workingCity,
+                      serviceTypes: businessData.serviceTypes ? businessData.serviceTypes.split(',').map(s => s.trim()).filter(s => s) : [],
+                      tailoringCategories: businessData.tailoringCategories ? businessData.tailoringCategories.split(',').map(c => c.trim()).filter(c => c) : [],
+                      specialization: businessData.specialization,
+                      yearsOfExperience: businessData.yearsOfExperience,
+                      portfolioPhotos: businessData.portfolioPhotos ? businessData.portfolioPhotos.split(',').map(p => p.trim()).filter(p => p) : [],
+                      certifications: businessData.certifications,
+                      openingTime: businessData.openingTime,
+                      closingTime: businessData.closingTime,
+                      weeklyOff: businessData.weeklyOff,
+                      tailorItemPrices: businessData.tailorItemPrices || [] // Pass tailorItemPrices array
+                    }}
+                    businessId={businessData.businessId}
+                    userId={businessData.userId || user?.id}
+                    authToken={user?.token}
+                    sellerType={user?.roleName || ''}
+                    onBack={() => setIsEditingBusiness(false)}
+                    onShowToast={onShowToast}
+                    onSuccess={() => {
+                      // Navigate back to dashboard after successful update
+                      setIsEditingBusiness(false);
+                      if (onBack) {
+                        onBack(); // This will navigate to dashboard
+                      }
+                    }}
+                    onSubmit={async (formData) => {
+                      // BusinessInfoForm handles the API call in edit mode, so we just need to refresh
+                      setIsEditingBusiness(false);
+                      // Optionally refresh business data
+                      if (onShowToast) {
+                        onShowToast('Business information updated successfully!', 'success');
+                      }
+                    }}
+                  />
+                ) : (
+                  <>
+                    <div className="section-header">
+                      <h3 className="section-title">Business Information</h3>
+                      <button className="edit-btn" onClick={() => setIsEditingBusiness(true)}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12"/>
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                         </svg>
-                        {isSubmittingBusiness ? 'Saving...' : 'Save Changes'}
+                        Edit
                       </button>
                     </div>
-                  )}
-                </div>
 
-                {isLoadingBusiness ? (
-                  <div className="loading-message" style={{ textAlign: 'center', padding: '2rem' }}>
-                    Loading business information...
-                  </div>
-                ) : businessError ? (
-                  <div className="error-message" style={{ color: '#e74c3c', padding: '1rem', background: '#fee', borderRadius: '8px' }}>
-                    {businessError}
-                  </div>
-                ) : (
+                    {isLoadingBusiness ? (
+                      <div className="loading-message" style={{ textAlign: 'center', padding: '2rem' }}>
+                        Loading business information...
+                      </div>
+                    ) : businessError ? (
+                      <div className="error-message" style={{ color: '#e74c3c', padding: '1rem', background: '#fee', borderRadius: '8px' }}>
+                        {businessError}
+                      </div>
+                    ) : (
                   <div className="form-grid">
                     {/* Business Logo Display & Upload */}
                     <div className="form-group full-width" style={{ marginBottom: '1.5rem' }}>
@@ -1377,6 +1426,8 @@ const Profile = ({ user, onLogout, onBack, onShowToast }) => {
                     </div>
 
                   </div>
+                    )}
+                  </>
                 )}
               </div>
             )}

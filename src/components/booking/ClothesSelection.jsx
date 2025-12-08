@@ -56,12 +56,30 @@ const ClothesSelection = ({ tailorServices, tailorName, tailoringCategories, onN
 
   // Generate clothing items directly from API tailoringCategories
   const clothingItems = availableCategories.length > 0
-    ? availableCategories.map((category, index) => ({
-        id: index + 1,
-        name: category,
-        service: getServiceForCategory(category),
-        isAvailable: true // All items from API are available
-      }))
+    ? availableCategories.map((category, index) => {
+        // Extract name from category object if it's an object
+        let categoryName;
+        if (typeof category === 'string') {
+          categoryName = category;
+        } else if (category.Name) {
+          categoryName = category.Name;
+        } else if (category.name) {
+          categoryName = category.name;
+        } else if (category.categoryName) {
+          categoryName = category.categoryName;
+        } else if (category.itemName) {
+          categoryName = category.itemName;
+        } else {
+          categoryName = String(category);
+        }
+        
+        return {
+          id: category.ItemId || category.itemId || category.id || index + 1,
+          name: categoryName,
+          service: getServiceForCategory(categoryName),
+          isAvailable: true // All items from API are available
+        };
+      })
     : []; // If no categories, show empty list
 
 
