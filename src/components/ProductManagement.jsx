@@ -2520,7 +2520,7 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
                 <div className="pm-sidebar-card">
                   <div className="pm-sidebar-header">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                      <text x="12" y="18" textAnchor="middle" fontSize="20" fontWeight="bold" fill="currentColor" fontFamily="Arial, sans-serif">₹</text>
                     </svg>
                     <h3>Why Sell on Fit Formal?</h3>
                   </div>
@@ -2539,9 +2539,8 @@ const ProductManagement = ({ user, onBackToDashboard }) => {
                     </li>
                     <li>
                       <div className="pm-benefit-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <line x1="12" y1="1" x2="12" y2="23"/>
-                          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                          <text x="12" y="18" textAnchor="middle" fontSize="18" fontWeight="bold" fill="currentColor" fontFamily="Arial, sans-serif">₹</text>
                         </svg>
                       </div>
                       <div>

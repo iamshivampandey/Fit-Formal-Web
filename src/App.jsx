@@ -423,6 +423,7 @@ function App() {
           tailorName={bookingData.name}
           tailorServices={bookingData.services}
           tailoringCategories={bookingData.tailoringCategories}
+          tailorItemPrices={bookingData.tailorItemPrices}
           businessId={bookingData.businessId}
           user={user}
           onBack={handleBackFromBooking}

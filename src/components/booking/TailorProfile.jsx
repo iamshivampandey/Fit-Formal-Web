@@ -84,6 +84,7 @@ const TailorProfile = ({ tailor, onBack, user, onNavigateToBooking }) => {
         name: tailorData.name,
         services: tailorData.services,
         tailoringCategories: tailoringCategories || [],
+        tailorItemPrices: tailor?.tailorItemPrices || [],
         user: user
       });
     } else {
@@ -274,6 +275,8 @@ const TailorProfile = ({ tailor, onBack, user, onNavigateToBooking }) => {
           onBack={() => setShowBookingPage(false)}
           tailorName={tailorData.name}
           tailorServices={tailorData.services}
+          tailoringCategories={tailor?.tailoringCategories}
+          tailorItemPrices={tailor?.tailorItemPrices}
           businessId={tailor?.businessId || tailor?.userId || tailor?.id}
           user={user}
         />

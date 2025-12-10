@@ -136,11 +136,26 @@ const TailorsListPage = ({ user, onBack, onNavigateToBooking }) => {
         throw new Error(data.message || 'Failed to fetch tailor business data');
       }
 
+      // Parse tailorItemPrices if it's a JSON string
+      let parsedTailorItemPrices = data.data?.tailorItemPrices;
+      if (typeof parsedTailorItemPrices === 'string') {
+        try {
+          const decoded = parsedTailorItemPrices
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/&amp;/g, '&');
+          parsedTailorItemPrices = JSON.parse(decoded);
+        } catch (e) {
+          console.warn('Failed to parse tailorItemPrices in TailorsListPage:', e);
+        }
+      }
+
       // Merge API response data with tailor object
       const tailorWithBusinessData = {
         ...tailor,
         ...data.data, // Merge all business data fields
-        tailoringCategories: data.data?.tailoringCategories || tailor?.tailoringCategories
+        tailoringCategories: data.data?.tailoringCategories || tailor?.tailoringCategories,
+        tailorItemPrices: parsedTailorItemPrices || data.data?.tailorItemPrices || tailor?.tailorItemPrices || []
       };
 
       // API call successful, proceed to show tailor profile

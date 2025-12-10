@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ClothesSelection from './ClothesSelection';
 import DatePicker from './DatePicker';
 import SlotList from './SlotList';
@@ -7,13 +7,24 @@ import BookingSuccess from './BookingSuccess';
 import './BookingPage.css';
 import './BookingModal.css';
 
-const BookingPage = ({ tailorName, tailorServices, tailoringCategories, businessId, user, onBack }) => {
+const BookingPage = ({ tailorName, tailorServices, tailoringCategories, tailorItemPrices, businessId, user, onBack }) => {
   const [showDateModal, setShowDateModal] = useState(false); // Modal for date picker and slots
   const [modalStep, setModalStep] = useState(1); // 1: DatePicker, 2: SlotList/MeasurementAvailability
   const [selectedClothes, setSelectedClothes] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [showSuccess, setShowSuccess] = useState(false);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('📦 BookingPage - Received props:', {
+      tailorName,
+      tailorServices,
+      tailoringCategories,
+      tailorItemPrices,
+      businessId
+    });
+  }, [tailorName, tailorServices, tailoringCategories, tailorItemPrices, businessId]);
 
   const handleClothesNext = (clothes) => {
     setSelectedClothes(clothes);
@@ -88,6 +99,7 @@ const BookingPage = ({ tailorName, tailorServices, tailoringCategories, business
               tailorServices={tailorServices}
               tailorName={tailorName}
               tailoringCategories={tailoringCategories}
+              tailorItemPrices={tailorItemPrices}
               onNext={handleClothesNext}
               onBack={onBack}
             />

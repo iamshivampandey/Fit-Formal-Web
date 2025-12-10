@@ -39,10 +39,6 @@ const MeasurementAvailability = ({ selectedSlot, bookingDate, onConfirm, onBack 
     return `${dateStr} - ${selectedSlot.time}`;
   };
 
-  const options = [
-    { id: 'exact', label: 'Exact slot selected', description: selectedSlot?.time },
-    { id: 'flexible', label: 'Flexible window', description: 'I can adjust timing within the slot' },
-  ];
 
   return (
     <div style={{ marginTop: '2rem' }}>
@@ -67,70 +63,8 @@ const MeasurementAvailability = ({ selectedSlot, bookingDate, onConfirm, onBack 
         </p>
       </div>
 
-      <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#1c1c1c', marginBottom: '0.5rem' }}>
-        Measurement ke liye aap kab available ho?
-      </h3>
-      <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '1.5rem' }}>
-        Please confirm your measurement slot preference
-      </p>
-
       {/* Options */}
-      <div style={{ marginBottom: '1.5rem' }}>
-        {options.map((option) => (
-          <button
-            key={option.id}
-            onClick={() => setSelectedOption(option.id)}
-            style={{
-              width: '100%',
-              padding: '1rem',
-              borderRadius: '8px',
-              border: `2px solid ${selectedOption === option.id ? '#654321' : '#e0e0e0'}`,
-              backgroundColor: selectedOption === option.id ? '#f5f0e8' : '#ffffff',
-              textAlign: 'left',
-              marginBottom: '0.75rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between'
-            }}
-            onMouseEnter={(e) => {
-              if (selectedOption !== option.id) {
-                e.currentTarget.style.borderColor = '#c0c0c0';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (selectedOption !== option.id) {
-                e.currentTarget.style.borderColor = '#e0e0e0';
-              }
-            }}
-          >
-            <div>
-              <p style={{ fontWeight: 600, color: '#1c1c1c', marginBottom: '0.25rem' }}>
-                {option.label}
-              </p>
-              <p style={{ fontSize: '0.875rem', color: '#666' }}>
-                {option.description}
-              </p>
-            </div>
-            {selectedOption === option.id && (
-              <div style={{
-                width: '20px',
-                height: '20px',
-                backgroundColor: '#654321',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <svg width="12" height="12" viewBox="0 0 20 20" fill="white">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-              </div>
-            )}
-          </button>
-        ))}
-      </div>
+
 
       {/* Action Buttons */}
       <div style={{ display: 'flex', gap: '0.75rem', marginTop: '2rem' }}>
