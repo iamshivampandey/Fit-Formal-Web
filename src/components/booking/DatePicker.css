@@ -77,6 +77,12 @@
   align-items: center;
   justify-content: center;
   min-height: 32px;
+  position: relative;
+}
+
+.date-picker-day-number {
+  position: relative;
+  z-index: 1;
 }
 
 .date-picker-day:hover:not(.date-picker-day-disabled):not(.date-picker-day-selected) {
@@ -114,6 +120,37 @@
 
 .date-picker-day-closed:hover {
   background-color: #ffcdd2 !important;
+}
+
+.date-picker-day-booked {
+  background-color: #fff3e0 !important;
+  color: #f57c00 !important;
+  cursor: not-allowed !important;
+  opacity: 0.8;
+  font-weight: 500;
+  position: relative;
+}
+
+.date-picker-day-booked:hover {
+  background-color: #ffe0b2 !important;
+}
+
+.date-picker-order-count {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  background-color: #ff9800;
+  color: #ffffff;
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
 }
 
 .date-picker-empty {

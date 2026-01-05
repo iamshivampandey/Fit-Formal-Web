@@ -78,6 +78,46 @@ const RoleSelection = ({ onRoleSelect, onBackToLogin }) => {
               </ul>
             </div>
           </div>
+
+          {/* Measurement Boy Card */}
+          <div 
+            className={`role-card ${selectedRole === 'MeasurementBoy' ? 'selected' : ''}`}
+            onClick={() => handleRoleClick('MeasurementBoy')}
+          >
+            <div className="role-icon measurement-boy-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                <path d="M3 7h18M3 12h18M3 17h18" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M5 5v14M9 5v14M13 5v14M17 5v14" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="7" cy="7" r="1" fill="white"/>
+                <circle cx="11" cy="7" r="1" fill="white"/>
+                <circle cx="15" cy="7" r="1" fill="white"/>
+                <circle cx="19" cy="7" r="1" fill="white"/>
+                <circle cx="7" cy="12" r="1" fill="white"/>
+                <circle cx="11" cy="12" r="1" fill="white"/>
+                <circle cx="15" cy="12" r="1" fill="white"/>
+                <circle cx="19" cy="12" r="1" fill="white"/>
+                <circle cx="7" cy="17" r="1" fill="white"/>
+                <circle cx="11" cy="17" r="1" fill="white"/>
+                <circle cx="15" cy="17" r="1" fill="white"/>
+                <circle cx="19" cy="17" r="1" fill="white"/>
+              </svg>
+            </div>
+            <div className="role-info">
+              <h2 className="role-name">Measurement Boy</h2>
+              <p className="role-description">Provide home measurement services for customers</p>
+            </div>
+            
+            <div className="role-benefits">
+              <h3>What you get:</h3>
+              <ul>
+                <li>✓ Accept measurement appointments</li>
+                <li>✓ Visit customers at their location</li>
+                <li>✓ Record accurate measurements</li>
+                <li>✓ Manage your schedule efficiently</li>
+                <li>✓ Earn flexible income</li>
+              </ul>
+            </div>
+          </div>
         </div>
 
         {/* About Our Ecosystem - Non-selectable info card */}

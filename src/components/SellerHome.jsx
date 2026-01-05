@@ -239,7 +239,7 @@ const ActionCard = ({ title, description, icon, onClick }) => {
 // MAIN COMPONENT
 // ============================================
 
-const SellerHome = ({ user, onLogout, onNavigateToProducts, onNavigateToProfile, onNavigateToOrdersPerDay }) => {
+const SellerHome = ({ user, onLogout, onNavigateToProducts, onNavigateToProfile, onNavigateToOrdersPerDay, onNavigateToMyOrders }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
 
   /**
@@ -265,6 +265,11 @@ const SellerHome = ({ user, onLogout, onNavigateToProducts, onNavigateToProfile,
     // Navigate to profile if profile tab is clicked
     if (tabId === 'profile' && onNavigateToProfile) {
       onNavigateToProfile();
+    }
+    
+    // Navigate to orders if orders tab is clicked
+    if (tabId === 'orders' && onNavigateToMyOrders) {
+      onNavigateToMyOrders();
     }
   };
 

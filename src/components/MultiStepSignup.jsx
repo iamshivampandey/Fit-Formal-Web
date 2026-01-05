@@ -91,7 +91,7 @@ const MultiStepSignup = ({
       // Show seller type selection
       setCurrentStep(2);
     } else {
-      // Customer goes directly to signup
+      // Customer and MeasurementBoy go directly to signup
       setCurrentStep(3);
     }
   };
@@ -116,11 +116,15 @@ const MultiStepSignup = ({
       setSignupFormData(data);
       setCurrentStep(4);
     } else {
-      // For customers, complete signup directly
+      // For customers and MeasurementBoy, complete signup directly
       const finalData = {
         ...data,
-        role: selectedRole
+        role: selectedRole,
+        roleName: selectedRole // Ensure roleName is also set
       };
+      
+      console.log('📝 MultiStepSignup - Final data for non-seller:', finalData);
+      console.log('🎭 Selected role:', selectedRole);
       
       // Clear signup state after successful signup
       clearSignupState();

@@ -10,11 +10,14 @@ import './BookingModal.css';
 
 const BookingPage = ({ tailorName, tailorServices, tailoringCategories, tailorItemPrices, businessId, user, onBack }) => {
   const [showDateModal, setShowDateModal] = useState(false); // Modal for date picker and slots
-  const [modalStep, setModalStep] = useState(1); // 1: DatePicker, 2: SlotList, 3: AddressInput, 4: OrderConfirmation
+  const [modalStep, setModalStep] = useState(1); // 1: DatePicker, 2: SlotList, 3: MeasurementAddress, 4: DeliveryAddress, 5: OrderConfirmation
   const [selectedClothes, setSelectedClothes] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
+  const [measurementAddress, setMeasurementAddress] = useState(null);
+  const [measurementAddressId, setMeasurementAddressId] = useState(null);
   const [deliveryAddress, setDeliveryAddress] = useState(null);
+  const [deliveryAddressId, setDeliveryAddressId] = useState(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
 
@@ -43,14 +46,22 @@ const BookingPage = ({ tailorName, tailorServices, tailoringCategories, tailorIt
 
   const handleSlotSelect = (slot) => {
     setSelectedSlot(slot);
-    // Move to address input step after slot selection
+    // Move to measurement address input step after slot selection
     setModalStep(3);
   };
 
-  const handleAddressSubmit = (address) => {
-    setDeliveryAddress(address);
-    // Move to order confirmation step
+  const handleMeasurementAddressSubmit = (address, addressId) => {
+    setMeasurementAddress(address);
+    setMeasurementAddressId(addressId);
+    // Move to delivery address input step
     setModalStep(4);
+  };
+
+  const handleDeliveryAddressSubmit = (address, addressId) => {
+    setDeliveryAddress(address);
+    setDeliveryAddressId(addressId);
+    // Move to order confirmation step
+    setModalStep(5);
   };
 
   const handleOrderConfirm = async () => {
@@ -66,7 +77,13 @@ const BookingPage = ({ tailorName, tailorServices, tailoringCategories, tailorIt
       return;
     }
 
-    if (!deliveryAddress) {
+    if (!measurementAddress && !measurementAddressId) {
+      console.error('No measurement address');
+      alert('Please provide measurement address');
+      return;
+    }
+
+    if (!deliveryAddress && !deliveryAddressId) {
       console.error('No delivery address');
       alert('Please provide delivery address');
       return;
@@ -173,6 +190,14 @@ const BookingPage = ({ tailorName, tailorServices, tailoringCategories, tailorIt
         const quantity = item.quantity || 1;
         const itemTotal = unitPrice * quantity;
 
+        // Build measurement slot object
+        const measurementSlotObj = selectedSlot ? {
+          time: selectedSlot.time || selectedSlot.startTime || '',
+          startTime: selectedSlot.startTime,
+          endTime: selectedSlot.endTime,
+          id: selectedSlot.id
+        } : null;
+
         return {
           itemType: item.service || 'Custom Tailoring',
           productCode: `ITEM-${item.id}`,
@@ -185,13 +210,8 @@ const BookingPage = ({ tailorName, tailorServices, tailoringCategories, tailorIt
           itemTotal: itemTotal,
           status: 'Pending',
           measurementDate: formatDateToISO(measurementDateObj),
+          measurementSlot: measurementSlotObj,
           stitchingDate: formatDateToISO(stitchingDateObj),
-          measurementSlot: selectedSlot ? {
-            time: selectedSlot.time,
-            startTime: selectedSlot.startTime,
-            endTime: selectedSlot.endTime,
-            id: selectedSlot.id
-          } : null,
           notes: ''
         };
       });
@@ -219,35 +239,7 @@ const BookingPage = ({ tailorName, tailorServices, tailoringCategories, tailorIt
         orderDateObj.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
       }
 
-      // Use the delivery address from the address input form
-      const finalDeliveryAddress = deliveryAddress || (() => {
-        // Fallback: Build delivery address from user data if not provided
-        const userAddress = user?.address || '';
-        const userPhone = user?.phoneNumber || user?.phone || '';
-        
-        if (user?.deliveryAddress) {
-          return user.deliveryAddress;
-        }
-        
-        return {
-          fullName: user?.firstName && user?.lastName 
-            ? `${user.firstName} ${user.lastName}`.trim()
-            : user?.fullName || user?.name || '',
-          phoneNumber: userPhone,
-          alternatePhone: user?.alternatePhone || '',
-          addressLine1: userAddress || user?.addressLine1 || '',
-          addressLine2: user?.addressLine2 || '',
-          landmark: user?.landmark || '',
-          city: user?.city || '',
-          state: user?.state || '',
-          pincode: user?.pincode || user?.zipCode || '',
-          addressType: user?.addressType || 'Home',
-          deliveryInstructions: user?.deliveryInstructions || '',
-          googleMapLink: user?.googleMapLink || ''
-        };
-      })();
-
-      // Build order payload
+      // Build optimized order payload
       const orderPayload = {
         customerId: user.id,
         orderDate: orderDateObj.toISOString(),
@@ -256,9 +248,52 @@ const BookingPage = ({ tailorName, tailorServices, tailoringCategories, tailorIt
         advancePaid: 0,
         deliveryDate: deliveryDate ? deliveryDate.toISOString() : null,
         notes: `Order for ${tailorName || 'Tailor'}`,
-        deliveryAddress: finalDeliveryAddress,
         orderItems: orderItems
       };
+
+      // Add measurement address (use ID if available, otherwise use object)
+      if (measurementAddressId) {
+        orderPayload.measurementAddressId = measurementAddressId;
+        orderPayload.measurementAddressType = 'Measurement';
+      } else if (measurementAddress) {
+        orderPayload.measurementAddress = {
+          fullName: measurementAddress.fullName,
+          phoneNumber: measurementAddress.phoneNumber,
+          alternatePhone: measurementAddress.alternatePhone || null,
+          addressLine1: measurementAddress.addressLine1,
+          addressLine2: measurementAddress.addressLine2 || null,
+          landmark: measurementAddress.landmark || null,
+          city: measurementAddress.city?.replace(/^string:/, '') || measurementAddress.city,
+          state: measurementAddress.state,
+          pincode: measurementAddress.pincode,
+          addressType: measurementAddress.addressType || 'Home',
+          deliveryInstructions: measurementAddress.deliveryInstructions || null,
+          googleMapLink: measurementAddress.googleMapLink || null
+        };
+        orderPayload.measurementAddressType = 'Measurement';
+      }
+
+      // Add delivery address (use ID if available, otherwise use object)
+      if (deliveryAddressId) {
+        orderPayload.deliveryAddressId = deliveryAddressId;
+        orderPayload.deliveryAddressType = 'Delivery';
+      } else if (deliveryAddress) {
+        orderPayload.deliveryAddress = {
+          fullName: deliveryAddress.fullName,
+          phoneNumber: deliveryAddress.phoneNumber,
+          alternatePhone: deliveryAddress.alternatePhone || null,
+          addressLine1: deliveryAddress.addressLine1,
+          addressLine2: deliveryAddress.addressLine2 || null,
+          landmark: deliveryAddress.landmark || null,
+          city: deliveryAddress.city?.replace(/^string:/, '') || deliveryAddress.city,
+          state: deliveryAddress.state,
+          pincode: deliveryAddress.pincode,
+          addressType: deliveryAddress.addressType || 'Home',
+          deliveryInstructions: deliveryAddress.deliveryInstructions || null,
+          googleMapLink: deliveryAddress.googleMapLink || null
+        };
+        orderPayload.deliveryAddressType = 'Delivery';
+      }
 
       // Only include totalAmount if we have items with prices
       if (totalAmount > 0) {
@@ -382,7 +417,7 @@ const BookingPage = ({ tailorName, tailorServices, tailoringCategories, tailorIt
       {/* Date Picker & Slot Selection Modal */}
       {showDateModal && (
         <div className="booking-modal-overlay">
-          <div className={`booking-modal-container ${modalStep === 3 || modalStep === 4 ? 'address-form' : ''}`}>
+            <div className={`booking-modal-container ${modalStep === 3 || modalStep === 4 || modalStep === 5 ? 'address-form' : ''}`}>
             {/* Header */}
             <div className="booking-modal-header">
               <h2 className="booking-modal-title">{getModalTitle()}</h2>
@@ -398,7 +433,7 @@ const BookingPage = ({ tailorName, tailorServices, tailoringCategories, tailorIt
             </div>
 
             {/* Content */}
-            <div className={`booking-modal-content ${modalStep === 3 || modalStep === 4 ? 'address-form-content' : ''}`}>
+            <div className={`booking-modal-content ${modalStep === 3 || modalStep === 4 || modalStep === 5 ? 'address-form-content' : ''}`}>
               {modalStep === 1 && (
                 <DatePicker 
                   onDateSelect={handleDateSelect} 
@@ -420,15 +455,28 @@ const BookingPage = ({ tailorName, tailorServices, tailoringCategories, tailorIt
               {modalStep === 3 && (
                 <AddressInput
                   user={user}
-                  onNext={handleAddressSubmit}
+                  addressType="Measurement"
+                  onNext={(address, addressId) => handleMeasurementAddressSubmit(address, addressId)}
                   onBack={() => {
                     setModalStep(2);
+                  }}
+                  initialAddress={measurementAddress}
+                />
+              )}
+
+              {modalStep === 4 && (
+                <AddressInput
+                  user={user}
+                  addressType="Delivery"
+                  onNext={(address, addressId) => handleDeliveryAddressSubmit(address, addressId)}
+                  onBack={() => {
+                    setModalStep(3);
                   }}
                   initialAddress={deliveryAddress}
                 />
               )}
 
-              {modalStep === 4 && selectedSlot && deliveryAddress && (
+              {modalStep === 5 && selectedSlot && (measurementAddress || measurementAddressId) && (deliveryAddress || deliveryAddressId) && (
                 <OrderConfirmation
                   bookingDate={new Date()}
                   measurementDate={(() => {
@@ -440,6 +488,7 @@ const BookingPage = ({ tailorName, tailorServices, tailoringCategories, tailorIt
                   measurementSlot={selectedSlot}
                   stitchingDate={selectedDate}
                   deliveryDate={calculateDeliveryDate()}
+                  measurementAddress={measurementAddress}
                   deliveryAddress={deliveryAddress}
                   selectedClothes={selectedClothes}
                   tailorName={tailorName}

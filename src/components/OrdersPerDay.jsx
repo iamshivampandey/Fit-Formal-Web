@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import './OrdersPerDay.css';
 
-const OrdersPerDay = ({ user, businessId, onBack }) => {
+const OrdersPerDay = ({ user, businessId, onBack, onNavigateToOrderDetailsPerDay }) => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [ordersData, setOrdersData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -93,7 +93,7 @@ const OrdersPerDay = ({ user, businessId, onBack }) => {
           const availabilityResult = await availabilityResponse.json();
           const rawData = availabilityResult.data || availabilityResult.availability || [];
           
-          // Normalize availability data: handle Date (ISO format) and IsClosed (capitalized)
+          // Normalize availability data: handle Date (ISO format), IsClosed (capitalized), and totalOrderCount
           availabilityData = rawData.map(item => {
             // Extract date from ISO format (e.g., "2025-12-08T00:00:00.000Z" -> "2025-12-08")
             const dateValue = item.Date || item.date;
@@ -101,10 +101,12 @@ const OrdersPerDay = ({ user, businessId, onBack }) => {
             
             // Handle both IsClosed and isClosed (case-insensitive)
             const isClosed = item.IsClosed !== undefined ? item.IsClosed : item.isClosed;
+            const totalOrderCount = item.totalOrderCount || 0;
             
             return {
               date: normalizedDate,
-              isClosed: isClosed,
+              isClosed: isClosed === true,
+              totalOrderCount: totalOrderCount,
               ...item // Keep other fields
             };
           });
@@ -168,9 +170,12 @@ const OrdersPerDay = ({ user, businessId, onBack }) => {
           }
           // If no match, isTakingOrders remains true (default: taking orders)
           
+          // Use totalOrderCount from availability API if available, otherwise use orderItem totalOrders
+          const totalOrders = availabilityItem?.totalOrderCount ?? orderItem?.totalOrders ?? 0;
+          
           return {
             date,
-            totalOrders: orderItem?.totalOrders ?? 0,
+            totalOrders: totalOrders,
             isTakingOrders: isTakingOrders,
             orders: orderItem?.orders || []
           };
@@ -406,7 +411,15 @@ const OrdersPerDay = ({ user, businessId, onBack }) => {
                       <td className="orders-per-day-col-actions">
                         <button 
                           className="orders-per-day-view-btn"
-                          onClick={() => setSelectedDate(item.date)}
+                          onClick={() => {
+                            const businessIdToUse = businessId || user?.businessId || user?.BusinessId;
+                            if (onNavigateToOrderDetailsPerDay && businessIdToUse) {
+                              onNavigateToOrderDetailsPerDay(businessIdToUse, item.date);
+                            } else {
+                              // Fallback to inline details if navigation not available
+                              setSelectedDate(item.date);
+                            }
+                          }}
                         >
                           View Details
                         </button>
@@ -418,34 +431,7 @@ const OrdersPerDay = ({ user, businessId, onBack }) => {
             </div>
           )}
 
-          {/* Selected Date Details */}
-          {selectedDate && !isLoading && (
-            <div className="orders-per-day-details">
-              <h3 className="orders-per-day-details-title">
-                Orders for {formatDate(selectedDate)}
-              </h3>
-              {ordersData.find(item => item.date === selectedDate)?.orders?.length > 0 ? (
-                <div className="orders-per-day-orders-list">
-                  {ordersData.find(item => item.date === selectedDate)?.orders.map((order) => (
-                    <div key={order.id} className="orders-per-day-order-item">
-                      <div className="orders-per-day-order-info">
-                        <h4 className="orders-per-day-order-id">{order.id}</h4>
-                        <p className="orders-per-day-order-customer">{order.customerName}</p>
-                      </div>
-                      <div className="orders-per-day-order-meta">
-                        <span className={`orders-per-day-order-status orders-per-day-order-status-${order.status}`}>
-                          {order.status}
-                        </span>
-                        <span className="orders-per-day-order-amount">₹{order.amount.toLocaleString()}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="orders-per-day-no-orders">No orders for this date</p>
-              )}
-            </div>
-          )}
+
         </div>
       </main>
     </div>

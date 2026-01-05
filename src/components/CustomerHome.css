@@ -299,6 +299,15 @@
   background-color: #7d5a2e;
 }
 
+/* Orders Page */
+.orders-page {
+  padding: 2rem 0;
+}
+
+.measurements-page {
+  padding: 2rem 0;
+}
+
 /* Recent Orders Section */
 .recent-orders-section {
   margin-bottom: 3rem;
@@ -309,6 +318,12 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
+}
+
+.orders-count {
+  font-size: 0.9rem;
+  color: #8E8E93;
+  font-weight: 500;
 }
 
 .view-all-btn {

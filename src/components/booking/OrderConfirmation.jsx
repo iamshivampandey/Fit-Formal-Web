@@ -6,6 +6,7 @@ const OrderConfirmation = ({
   measurementSlot,
   stitchingDate, 
   deliveryDate,
+  measurementAddress,
   deliveryAddress,
   selectedClothes,
   tailorName,
@@ -152,6 +153,50 @@ const OrderConfirmation = ({
         </p>
       </div>
 
+      {/* Measurement Address Section */}
+      {measurementAddress && (
+        <div style={{ 
+          backgroundColor: '#F2F2F7', 
+          padding: '1rem', 
+          borderRadius: '8px', 
+          marginBottom: '1.5rem',
+          border: '1px solid #E5E5EA'
+        }}>
+          <h4 style={{ 
+            fontSize: '0.875rem', 
+            fontWeight: 600, 
+            color: '#654321', 
+            marginBottom: '0.75rem' 
+          }}>
+            Measurement Address
+          </h4>
+          <div style={{ fontSize: '0.875rem', color: '#1c1c1c', lineHeight: '1.6' }}>
+            <p style={{ margin: '0.25rem 0', fontWeight: 500 }}>{measurementAddress.fullName}</p>
+            <p style={{ margin: '0.25rem 0', color: '#8E8E93' }}>
+              {measurementAddress.phoneNumber}
+              {measurementAddress.alternatePhone && ` / ${measurementAddress.alternatePhone}`}
+            </p>
+            <p style={{ margin: '0.25rem 0', color: '#8E8E93' }}>
+              {measurementAddress.addressLine1}
+              {measurementAddress.addressLine2 && `, ${measurementAddress.addressLine2}`}
+            </p>
+            {measurementAddress.landmark && (
+              <p style={{ margin: '0.25rem 0', color: '#8E8E93' }}>
+                Near {measurementAddress.landmark}
+              </p>
+            )}
+            <p style={{ margin: '0.25rem 0', color: '#8E8E93' }}>
+              {measurementAddress.city?.replace(/^string:/, '') || measurementAddress.city}, {measurementAddress.state} - {measurementAddress.pincode}
+            </p>
+            {measurementAddress.addressType && (
+              <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.75rem', color: '#654321' }}>
+                <strong>Type:</strong> {measurementAddress.addressType}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Delivery Address Section */}
       {deliveryAddress && (
         <div style={{ 
@@ -185,7 +230,7 @@ const OrderConfirmation = ({
               </p>
             )}
             <p style={{ margin: '0.25rem 0', color: '#8E8E93' }}>
-              {deliveryAddress.city}, {deliveryAddress.state} - {deliveryAddress.pincode}
+              {deliveryAddress.city?.replace(/^string:/, '') || deliveryAddress.city}, {deliveryAddress.state} - {deliveryAddress.pincode}
             </p>
             {deliveryAddress.addressType && (
               <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.75rem', color: '#654321' }}>

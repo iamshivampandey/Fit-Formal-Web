@@ -9,6 +9,9 @@ import Profile from './components/Profile'
 import TailorsListPage from './components/TailorsListPage'
 import OrdersPerDay from './components/OrdersPerDay'
 import BookingPage from './components/booking/BookingPage'
+import OrderDetails from './components/OrderDetails'
+import OrderDetailsPerDay from './components/OrderDetailsPerDay'
+import MyOrders from './components/MyOrders'
 import './App.css'
 
 function App() {
@@ -61,6 +64,8 @@ function App() {
     }
     return null;
   });
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [orderDetailsPerDayData, setOrderDetailsPerDayData] = useState(null);
   const [user, setUser] = useState(() => {
     // Restore user from localStorage on mount
     const savedUser = localStorage.getItem('user');
@@ -262,14 +267,25 @@ function App() {
     
     try {
       // Prepare the API request payload
+      // Normalize role name - API might expect specific format
+      let roleName = data.role || data.roleName || 'Customer';
+      
+      // Normalize MeasurementBoy to the format API expects
+      // Try both formats: "Measurement Boy" (with space) and "MeasurementBoy" (without space)
+      if (roleName === 'MeasurementBoy') {
+        roleName = 'MeasurementBoy'; // API likely expects space-separated format
+      }
+      
       const signupPayload = {
         email: data.email,
         password: data.password,
         firstName: data.firstName,
         lastName: data.lastName,
         phoneNumber: data.phoneNumber,
-        roleName: data.role || data.roleName || 'Customer'
+        roleName: roleName
       };
+      
+      console.log('🎭 Normalized roleName:', roleName, '(original:', data.role || data.roleName, ')');
       
       // If business info exists, add it to the signup payload
       if (data.businessInfo) {
@@ -361,6 +377,34 @@ function App() {
     setCurrentView('ordersPerDay');
   };
 
+  const handleNavigateToOrderDetails = (orderId) => {
+    setSelectedOrderId(orderId);
+    setCurrentView('orderDetails');
+  };
+
+  const handleBackFromOrderDetails = () => {
+    setSelectedOrderId(null);
+    setCurrentView('home');
+  };
+
+  const handleNavigateToOrderDetailsPerDay = (businessId, date) => {
+    setOrderDetailsPerDayData({ businessId, date });
+    setCurrentView('orderDetailsPerDay');
+  };
+
+  const handleBackFromOrderDetailsPerDay = () => {
+    setOrderDetailsPerDayData(null);
+    setCurrentView('ordersPerDay');
+  };
+
+  const handleNavigateToMyOrders = () => {
+    setCurrentView('myOrders');
+  };
+
+  const handleBackFromMyOrders = () => {
+    setCurrentView('home');
+  };
+
   const handleNavigateToBooking = (tailorData) => {
     setBookingData(tailorData);
     // Save bookingData to localStorage
@@ -399,6 +443,8 @@ function App() {
           onNavigateToProfile={handleNavigateToProfile}
           onNavigateToTailors={handleNavigateToTailors}
           onNavigateToOrdersPerDay={handleNavigateToOrdersPerDay}
+          onNavigateToOrderDetails={handleNavigateToOrderDetails}
+          onNavigateToMyOrders={handleNavigateToMyOrders}
         />
       ) : viewToRender === 'products' ? (
         <ProductManagement
@@ -433,6 +479,25 @@ function App() {
           user={user}
           businessId={user?.businessId}
           onBack={handleNavigateToDashboard}
+          onNavigateToOrderDetailsPerDay={handleNavigateToOrderDetailsPerDay}
+        />
+      ) : viewToRender === 'orderDetails' && selectedOrderId ? (
+        <OrderDetails
+          orderId={selectedOrderId}
+          user={user}
+          onBack={handleBackFromOrderDetails}
+        />
+      ) : viewToRender === 'orderDetailsPerDay' && orderDetailsPerDayData ? (
+        <OrderDetailsPerDay
+          businessId={orderDetailsPerDayData.businessId}
+          date={orderDetailsPerDayData.date}
+          user={user}
+          onBack={handleBackFromOrderDetailsPerDay}
+        />
+      ) : viewToRender === 'myOrders' ? (
+        <MyOrders
+          user={user}
+          onBack={handleBackFromMyOrders}
         />
       ) : viewToRender === 'login' ? (
         <LoginForm

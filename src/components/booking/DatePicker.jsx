@@ -74,15 +74,17 @@ const DatePicker = ({ onDateSelect, selectedDate, businessId, user, onBack }) =>
           const result = await response.json();
           const rawData = result.data || [];
           
-          // Normalize availability data: handle Date (ISO format) and IsClosed (capitalized)
+          // Normalize availability data: handle Date (ISO format), IsClosed (capitalized), and totalOrderCount
           const normalizedData = rawData.map(item => {
             const dateValue = item.Date || item.date;
             const normalizedDate = dateValue ? new Date(dateValue).toISOString().split('T')[0] : null;
             const isClosed = item.IsClosed !== undefined ? item.IsClosed : item.isClosed;
+            const totalOrderCount = item.totalOrderCount || 0;
             
             return {
               date: normalizedDate,
-              isClosed: isClosed,
+              isClosed: isClosed === true,
+              totalOrderCount: totalOrderCount,
             };
           });
           
@@ -128,14 +130,18 @@ const DatePicker = ({ onDateSelect, selectedDate, businessId, user, onBack }) =>
     
     // If no data, date is available (selectable)
     if (!availabilityItem) {
-      return { isClosed: false, isAvailable: true };
+      return { isClosed: false, totalOrderCount: 0, isAvailable: true };
     }
     
-    // If IsClosed is true, date is not available (not selectable)
-    // If IsClosed is false, date is available (selectable)
+    // Date is unavailable if:
+    // 1. IsClosed is true, OR
+    // 2. totalOrderCount > 0 (has bookings)
+    const isUnavailable = availabilityItem.isClosed === true || (availabilityItem.totalOrderCount || 0) > 0;
+    
     return {
-      isClosed: availabilityItem.isClosed,
-      isAvailable: !availabilityItem.isClosed
+      isClosed: availabilityItem.isClosed === true,
+      totalOrderCount: availabilityItem.totalOrderCount || 0,
+      isAvailable: !isUnavailable
     };
   };
 
@@ -347,10 +353,11 @@ const DatePicker = ({ onDateSelect, selectedDate, businessId, user, onBack }) =>
           const beyond60Days = isBeyond60Days(date);
           const availability = getDateAvailability(date);
           const isClosed = availability?.isClosed === true;
+          const totalOrderCount = availability?.totalOrderCount || 0;
           const isAvailable = availability?.isAvailable !== false; // Default to available if no data
 
-          // Date is disabled if: past, beyond 60 days, or closed
-          const isDisabled = past || beyond60Days || isClosed;
+          // Date is disabled if: past, beyond 60 days, closed, or has bookings (totalOrderCount > 0)
+          const isDisabled = past || beyond60Days || isClosed || totalOrderCount > 0;
 
           return (
             <button
@@ -363,10 +370,20 @@ const DatePicker = ({ onDateSelect, selectedDate, businessId, user, onBack }) =>
                 ${selected ? 'date-picker-day-selected' : ''}
                 ${today && !selected ? 'date-picker-day-today' : ''}
                 ${isClosed ? 'date-picker-day-closed' : ''}
+                ${totalOrderCount > 0 && !isClosed ? 'date-picker-day-booked' : ''}
               `}
-              title={isClosed ? 'Booking is unavailable for this date due to high demand' : ''}
+              title={
+                isClosed 
+                  ? 'This date is closed for bookings' 
+                  : totalOrderCount > 0 
+                    ? `${totalOrderCount} ${totalOrderCount === 1 ? 'order' : 'orders'} booked for this date`
+                    : ''
+              }
             >
-              {date.getDate()}
+              <span className="date-picker-day-number">{date.getDate()}</span>
+              {totalOrderCount > 0 && !isClosed && (
+                <span className="date-picker-order-count">{totalOrderCount}</span>
+              )}
             </button>
           );
         })}

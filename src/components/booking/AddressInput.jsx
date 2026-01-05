@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const AddressInput = ({ user, onNext, onBack, initialAddress }) => {
+const AddressInput = ({ user, onNext, onBack, initialAddress, addressType = 'Delivery' }) => {
   const [formData, setFormData] = useState({
     fullName: '',
     phoneNumber: '',
@@ -17,29 +17,105 @@ const AddressInput = ({ user, onNext, onBack, initialAddress }) => {
   });
 
   const [errors, setErrors] = useState({});
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [isLoadingAddresses, setIsLoadingAddresses] = useState(true);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [showNewAddressForm, setShowNewAddressForm] = useState(false);
+
+  // Fetch saved addresses
+  useEffect(() => {
+    const fetchSavedAddresses = async () => {
+      if (!user) {
+        setIsLoadingAddresses(false);
+        return;
+      }
+
+      setIsLoadingAddresses(true);
+      try {
+        const headers = {
+          'Content-Type': 'application/json',
+        };
+        
+        const authToken = user?.token || localStorage.getItem('token') || localStorage.getItem('authToken');
+        if (authToken) {
+          headers['Authorization'] = `Bearer ${authToken}`;
+        }
+
+        const response = await fetch('/api/my-delivery-addresses', {
+          method: 'GET',
+          headers: headers,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            setSavedAddresses(Array.isArray(data.data) ? data.data : []);
+          } else {
+            setSavedAddresses([]);
+          }
+        } else {
+          setSavedAddresses([]);
+        }
+      } catch (error) {
+        console.error('Error fetching saved addresses:', error);
+        setSavedAddresses([]);
+      } finally {
+        setIsLoadingAddresses(false);
+      }
+    };
+
+    fetchSavedAddresses();
+  }, [user]);
 
   // Initialize form data from user or initialAddress
   useEffect(() => {
-    if (initialAddress) {
-      setFormData(initialAddress);
-    } else if (user) {
-      const userAddress = user?.deliveryAddress || {};
-      setFormData({
-        fullName: userAddress.fullName || (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}`.trim() : '') || user?.fullName || user?.name || '',
-        phoneNumber: userAddress.phoneNumber || user?.phoneNumber || user?.phone || '',
-        alternatePhone: userAddress.alternatePhone || user?.alternatePhone || '',
-        addressLine1: userAddress.addressLine1 || user?.address || user?.addressLine1 || '',
-        addressLine2: userAddress.addressLine2 || user?.addressLine2 || '',
-        landmark: userAddress.landmark || user?.landmark || '',
-        city: userAddress.city || user?.city || '',
-        state: userAddress.state || user?.state || '',
-        pincode: userAddress.pincode || user?.pincode || user?.zipCode || '',
-        addressType: userAddress.addressType || user?.addressType || 'Home',
-        deliveryInstructions: userAddress.deliveryInstructions || user?.deliveryInstructions || '',
-        googleMapLink: userAddress.googleMapLink || user?.googleMapLink || ''
-      });
+    // Always show saved addresses first if they exist
+    // Only show form if no saved addresses exist
+    if (savedAddresses.length > 0) {
+      // If saved addresses exist, show them first (don't show form initially)
+      setShowNewAddressForm(false);
+      // Pre-fill form with user data for when they click "Add New"
+      if (user) {
+        const userAddress = user?.deliveryAddress || {};
+        setFormData({
+          fullName: userAddress.fullName || (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}`.trim() : '') || user?.fullName || user?.name || '',
+          phoneNumber: userAddress.phoneNumber || user?.phoneNumber || user?.phone || '',
+          alternatePhone: userAddress.alternatePhone || user?.alternatePhone || '',
+          addressLine1: userAddress.addressLine1 || user?.address || user?.addressLine1 || '',
+          addressLine2: userAddress.addressLine2 || user?.addressLine2 || '',
+          landmark: userAddress.landmark || user?.landmark || '',
+          city: userAddress.city || user?.city || '',
+          state: userAddress.state || user?.state || '',
+          pincode: userAddress.pincode || user?.pincode || user?.zipCode || '',
+          addressType: userAddress.addressType || user?.addressType || 'Home',
+          deliveryInstructions: userAddress.deliveryInstructions || user?.deliveryInstructions || '',
+          googleMapLink: userAddress.googleMapLink || user?.googleMapLink || ''
+        });
+      }
+    } else {
+      // No saved addresses - show form directly
+      if (initialAddress) {
+        setFormData(initialAddress);
+      } else if (user) {
+        const userAddress = user?.deliveryAddress || {};
+        setFormData({
+          fullName: userAddress.fullName || (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}`.trim() : '') || user?.fullName || user?.name || '',
+          phoneNumber: userAddress.phoneNumber || user?.phoneNumber || user?.phone || '',
+          alternatePhone: userAddress.alternatePhone || user?.alternatePhone || '',
+          addressLine1: userAddress.addressLine1 || user?.address || user?.addressLine1 || '',
+          addressLine2: userAddress.addressLine2 || user?.addressLine2 || '',
+          landmark: userAddress.landmark || user?.landmark || '',
+          city: userAddress.city || user?.city || '',
+          state: userAddress.state || user?.state || '',
+          pincode: userAddress.pincode || user?.pincode || user?.zipCode || '',
+          addressType: userAddress.addressType || user?.addressType || 'Home',
+          deliveryInstructions: userAddress.deliveryInstructions || user?.deliveryInstructions || '',
+          googleMapLink: userAddress.googleMapLink || user?.googleMapLink || ''
+        });
+      }
+      setShowNewAddressForm(true);
     }
-  }, [user, initialAddress]);
+  }, [user, initialAddress, savedAddresses.length]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -93,11 +169,60 @@ const AddressInput = ({ user, onNext, onBack, initialAddress }) => {
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleSelectAddress = (address) => {
+    setSelectedAddressId(address.deliveryAddressId || address.id);
+    setFormData({
+      fullName: address.fullName || '',
+      phoneNumber: address.phoneNumber || '',
+      alternatePhone: address.alternatePhone || '',
+      addressLine1: address.addressLine1 || '',
+      addressLine2: address.addressLine2 || '',
+      landmark: address.landmark || '',
+      city: address.city?.replace(/^string:/, '') || '',
+      state: address.state || '',
+      pincode: address.pincode || '',
+      addressType: address.addressType || 'Home',
+      deliveryInstructions: address.deliveryInstructions || '',
+      googleMapLink: address.googleMapLink || ''
+    });
+    setShowNewAddressForm(false);
+  };
+
+  const handleAddNewAddress = () => {
+    setSelectedAddressId(null);
+    setShowNewAddressForm(true);
+    // Reset form to empty or user defaults
+    const userAddress = user?.deliveryAddress || {};
+    setFormData({
+      fullName: userAddress.fullName || (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}`.trim() : '') || user?.fullName || user?.name || '',
+      phoneNumber: userAddress.phoneNumber || user?.phoneNumber || user?.phone || '',
+      alternatePhone: '',
+      addressLine1: '',
+      addressLine2: '',
+      landmark: '',
+      city: '',
+      state: '',
+      pincode: '',
+      addressType: 'Home',
+      deliveryInstructions: '',
+      googleMapLink: ''
+    });
+  };
+
   const handleSubmit = (e) => {
-    e.preventDefault();
+    if (e) {
+      e.preventDefault();
+    }
     
-    if (validateForm()) {
-      onNext(formData);
+    if (selectedAddressId && !showNewAddressForm) {
+      // Use selected address - formData is already populated
+      // Pass both address data and addressId
+      onNext(formData, selectedAddressId);
+    } else {
+      // Validate and submit new address
+      if (validateForm()) {
+        onNext(formData, null);
+      }
     }
   };
 
@@ -106,20 +231,166 @@ const AddressInput = ({ user, onNext, onBack, initialAddress }) => {
       <h3 style={{ 
         fontSize: '1.25rem', 
         fontWeight: 600, 
-        color: '#1c1c1c', 
+        color: '#654321', 
         marginBottom: '0.5rem' 
       }}>
-        Delivery Address
+        {addressType === 'Measurement' ? 'Measurement Address' : 'Delivery Address'}
       </h3>
       <p style={{ 
         fontSize: '0.875rem', 
         color: '#8E8E93', 
         marginBottom: '1.5rem' 
       }}>
-        Please provide your delivery address for the order
+        {savedAddresses.length > 0 
+          ? `Select a saved ${addressType.toLowerCase()} address or add a new one`
+          : `Please provide your ${addressType.toLowerCase()} address for the order`
+        }
       </p>
 
-      <form onSubmit={handleSubmit}>
+      {/* Saved Addresses List */}
+      {isLoadingAddresses ? (
+        <div style={{ 
+          padding: '2rem', 
+          textAlign: 'center', 
+          color: '#8E8E93' 
+        }}>
+          Loading saved addresses...
+        </div>
+      ) : savedAddresses.length > 0 && !showNewAddressForm ? (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '0.75rem',
+            marginBottom: '1rem'
+          }}>
+            {savedAddresses.map((address) => {
+              const addressId = address.deliveryAddressId || address.id;
+              const isSelected = selectedAddressId === addressId;
+              return (
+                <div
+                  key={addressId}
+                  onClick={() => handleSelectAddress(address)}
+                  style={{
+                    padding: '1rem',
+                    borderRadius: '8px',
+                    border: isSelected ? '2px solid #654321' : '1px solid #E5E5EA',
+                    backgroundColor: isSelected ? '#FFF8F0' : '#ffffff',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isSelected) {
+                      e.currentTarget.style.borderColor = '#654321';
+                      e.currentTarget.style.backgroundColor = '#F5F3F0';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isSelected) {
+                      e.currentTarget.style.borderColor = '#E5E5EA';
+                      e.currentTarget.style.backgroundColor = '#ffffff';
+                    }
+                  }}
+                >
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'flex-start',
+                    marginBottom: '0.5rem'
+                  }}>
+                    <div>
+                      <div style={{ 
+                        fontWeight: 600, 
+                        color: '#654321',
+                        marginBottom: '0.25rem'
+                      }}>
+                        {address.fullName}
+                      </div>
+                      <div style={{ 
+                        fontSize: '0.875rem', 
+                        color: '#8E8E93',
+                        marginBottom: '0.25rem'
+                      }}>
+                        {address.phoneNumber}
+                        {address.alternatePhone && ` / ${address.alternatePhone}`}
+                      </div>
+                    </div>
+                    {address.addressType && (
+                      <span style={{
+                        padding: '0.25rem 0.75rem',
+                        borderRadius: '12px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        backgroundColor: '#FFF3E0',
+                        color: '#654321',
+                        border: '1px solid #654321'
+                      }}>
+                        {address.addressType}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ 
+                    fontSize: '0.875rem', 
+                    color: '#1c1c1c',
+                    lineHeight: '1.5'
+                  }}>
+                    {address.addressLine1}
+                    {address.addressLine2 && `, ${address.addressLine2}`}
+                    {address.landmark && `, Near ${address.landmark}`}
+                    <br />
+                    {address.city?.replace(/^string:/, '')}, {address.state} - {address.pincode}
+                  </div>
+                  {isSelected && (
+                    <div style={{ 
+                      marginTop: '0.5rem',
+                      fontSize: '0.75rem',
+                      color: '#654321',
+                      fontWeight: 600
+                    }}>
+                      ✓ Selected
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={handleAddNewAddress}
+            style={{
+              width: '100%',
+              padding: '0.75rem',
+              borderRadius: '8px',
+              border: '2px dashed #654321',
+              backgroundColor: 'transparent',
+              color: '#654321',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#FFF8F0';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Add New Address
+          </button>
+        </div>
+      ) : null}
+
+      {/* New Address Form */}
+      {showNewAddressForm && (
+        <form onSubmit={handleSubmit}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {/* Full Name */}
           <div>
@@ -593,8 +864,67 @@ const AddressInput = ({ user, onNext, onBack, initialAddress }) => {
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: '0.75rem', marginTop: '2rem' }}>
+          {/* Action Buttons */}
+          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '2rem' }}>
+            <button
+              type="button"
+              onClick={() => {
+                if (showNewAddressForm && savedAddresses.length > 0) {
+                  setShowNewAddressForm(false);
+                  setSelectedAddressId(null);
+                } else {
+                  onBack();
+                }
+              }}
+              style={{
+                flex: 1,
+                padding: '0.75rem 1.5rem',
+                borderRadius: '8px',
+                border: '2px solid #c0c0c0',
+                color: '#666',
+                fontWeight: 600,
+                backgroundColor: '#ffffff',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f8f8f8';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#ffffff';
+              }}
+            >
+              {showNewAddressForm && savedAddresses.length > 0 ? 'Back to Saved' : 'Back'}
+            </button>
+            <button
+              type="submit"
+              style={{
+                flex: 1,
+                padding: '0.75rem 1.5rem',
+                borderRadius: '8px',
+                backgroundColor: '#654321',
+                color: '#ffffff',
+                fontWeight: 600,
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#7d5a2e';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#654321';
+              }}
+            >
+              Continue
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Action Buttons for Selected Address */}
+      {!showNewAddressForm && selectedAddressId && savedAddresses.length > 0 && (
+        <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
           <button
             type="button"
             onClick={onBack}
@@ -619,7 +949,8 @@ const AddressInput = ({ user, onNext, onBack, initialAddress }) => {
             Back
           </button>
           <button
-            type="submit"
+            type="button"
+            onClick={handleSubmit}
             style={{
               flex: 1,
               padding: '0.75rem 1.5rem',
@@ -641,7 +972,7 @@ const AddressInput = ({ user, onNext, onBack, initialAddress }) => {
             Continue
           </button>
         </div>
-      </form>
+      )}
     </div>
   );
 };

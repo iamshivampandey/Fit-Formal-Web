@@ -8,11 +8,14 @@ import BookingSuccess from './BookingSuccess';
 import './BookingModal.css';
 
 const BookingModal = ({ onClose, tailorName, tailorServices, businessId, user, tailorItemPrices }) => {
-  const [step, setStep] = useState(0); // 0: ClothesSelection, 1: DatePicker, 2: SlotList, 3: AddressInput, 4: OrderConfirmation
+  const [step, setStep] = useState(0); // 0: ClothesSelection, 1: DatePicker, 2: SlotList, 3: MeasurementAddress, 4: DeliveryAddress, 5: OrderConfirmation
   const [selectedClothes, setSelectedClothes] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
+  const [measurementAddress, setMeasurementAddress] = useState(null);
+  const [measurementAddressId, setMeasurementAddressId] = useState(null);
   const [deliveryAddress, setDeliveryAddress] = useState(null);
+  const [deliveryAddressId, setDeliveryAddressId] = useState(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
 
@@ -29,14 +32,22 @@ const BookingModal = ({ onClose, tailorName, tailorServices, businessId, user, t
 
   const handleSlotSelect = (slot) => {
     setSelectedSlot(slot);
-    // Move to address input step after slot selection
+    // Move to measurement address input step after slot selection
     setStep(3);
   };
 
-  const handleAddressSubmit = (address) => {
-    setDeliveryAddress(address);
-    // Move to order confirmation step
+  const handleMeasurementAddressSubmit = (address, addressId) => {
+    setMeasurementAddress(address);
+    setMeasurementAddressId(addressId);
+    // Move to delivery address input step
     setStep(4);
+  };
+
+  const handleDeliveryAddressSubmit = (address, addressId) => {
+    setDeliveryAddress(address);
+    setDeliveryAddressId(addressId);
+    // Move to order confirmation step
+    setStep(5);
   };
 
   const handleOrderConfirm = async () => {
@@ -52,7 +63,13 @@ const BookingModal = ({ onClose, tailorName, tailorServices, businessId, user, t
       return;
     }
 
-    if (!deliveryAddress) {
+    if (!measurementAddress && !measurementAddressId) {
+      console.error('No measurement address');
+      alert('Please provide measurement address');
+      return;
+    }
+
+    if (!deliveryAddress && !deliveryAddressId) {
       console.error('No delivery address');
       alert('Please provide delivery address');
       return;
@@ -158,6 +175,14 @@ const BookingModal = ({ onClose, tailorName, tailorServices, businessId, user, t
           return utcDate.toISOString();
         };
 
+        // Build measurement slot object
+        const measurementSlotObj = selectedSlot ? {
+          time: selectedSlot.time || selectedSlot.startTime || '',
+          startTime: selectedSlot.startTime,
+          endTime: selectedSlot.endTime,
+          id: selectedSlot.id
+        } : null;
+
         return {
           itemType: item.service || 'Custom Tailoring',
           productCode: `ITEM-${item.id}`,
@@ -170,13 +195,8 @@ const BookingModal = ({ onClose, tailorName, tailorServices, businessId, user, t
           itemTotal: itemTotal,
           status: 'Pending',
           measurementDate: formatDateToISO(measurementDateObj),
+          measurementSlot: measurementSlotObj,
           stitchingDate: formatDateToISO(stitchingDateObj),
-          measurementSlot: selectedSlot ? {
-            time: selectedSlot.time,
-            startTime: selectedSlot.startTime,
-            endTime: selectedSlot.endTime,
-            id: selectedSlot.id
-          } : null,
           notes: ''
         };
       });
@@ -208,46 +228,61 @@ const BookingModal = ({ onClose, tailorName, tailorServices, businessId, user, t
         orderDateObj.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
       }
 
-      // Use the delivery address from the address input form
-      const finalDeliveryAddress = deliveryAddress || (() => {
-        // Fallback: Build delivery address from user data if not provided
-        const userAddress = user?.address || '';
-        const userPhone = user?.phoneNumber || user?.phone || '';
-        
-        if (user?.deliveryAddress) {
-          return user.deliveryAddress;
-        }
-        
-        return {
-          fullName: user?.firstName && user?.lastName 
-            ? `${user.firstName} ${user.lastName}`.trim()
-            : user?.fullName || user?.name || '',
-          phoneNumber: userPhone,
-          alternatePhone: user?.alternatePhone || '',
-          addressLine1: userAddress || user?.addressLine1 || '',
-          addressLine2: user?.addressLine2 || '',
-          landmark: user?.landmark || '',
-          city: user?.city || '',
-          state: user?.state || '',
-          pincode: user?.pincode || user?.zipCode || '',
-          addressType: user?.addressType || 'Home',
-          deliveryInstructions: user?.deliveryInstructions || '',
-          googleMapLink: user?.googleMapLink || ''
-        };
-      })();
-
-      // Build order payload
+      // Build optimized order payload
       const orderPayload = {
         customerId: user.id,
-        orderDate: orderDateObj.toISOString(), // Today's date/time (Booking Date)
+        orderDate: orderDateObj.toISOString(),
         orderType: 'Tailoring',
         paymentStatus: 'Pending',
         advancePaid: 0,
         deliveryDate: deliveryDate ? deliveryDate.toISOString() : null,
         notes: `Order for ${tailorName || 'Tailor'}`,
-        deliveryAddress: finalDeliveryAddress,
         orderItems: orderItems
       };
+
+      // Add measurement address (use ID if available, otherwise use object)
+      if (measurementAddressId) {
+        orderPayload.measurementAddressId = measurementAddressId;
+        orderPayload.measurementAddressType = 'Measurement';
+      } else if (measurementAddress) {
+        orderPayload.measurementAddress = {
+          fullName: measurementAddress.fullName,
+          phoneNumber: measurementAddress.phoneNumber,
+          alternatePhone: measurementAddress.alternatePhone || null,
+          addressLine1: measurementAddress.addressLine1,
+          addressLine2: measurementAddress.addressLine2 || null,
+          landmark: measurementAddress.landmark || null,
+          city: measurementAddress.city?.replace(/^string:/, '') || measurementAddress.city,
+          state: measurementAddress.state,
+          pincode: measurementAddress.pincode,
+          addressType: measurementAddress.addressType || 'Home',
+          deliveryInstructions: measurementAddress.deliveryInstructions || null,
+          googleMapLink: measurementAddress.googleMapLink || null
+        };
+        orderPayload.measurementAddressType = 'Measurement';
+      }
+
+      // Add delivery address (use ID if available, otherwise use object)
+      if (deliveryAddressId) {
+        orderPayload.deliveryAddressId = deliveryAddressId;
+        orderPayload.deliveryAddressType = 'Delivery';
+      } else if (deliveryAddress) {
+        orderPayload.deliveryAddress = {
+          fullName: deliveryAddress.fullName,
+          phoneNumber: deliveryAddress.phoneNumber,
+          alternatePhone: deliveryAddress.alternatePhone || null,
+          addressLine1: deliveryAddress.addressLine1,
+          addressLine2: deliveryAddress.addressLine2 || null,
+          landmark: deliveryAddress.landmark || null,
+          city: deliveryAddress.city?.replace(/^string:/, '') || deliveryAddress.city,
+          state: deliveryAddress.state,
+          pincode: deliveryAddress.pincode,
+          addressType: deliveryAddress.addressType || 'Home',
+          deliveryInstructions: deliveryAddress.deliveryInstructions || null,
+          googleMapLink: deliveryAddress.googleMapLink || null
+        };
+        orderPayload.deliveryAddressType = 'Delivery';
+      }
 
       // Only include totalAmount if we have items with prices
       if (totalAmount > 0) {
@@ -355,15 +390,28 @@ const BookingModal = ({ onClose, tailorName, tailorServices, businessId, user, t
             {step === 3 && (
               <AddressInput
                 user={user}
-                onNext={handleAddressSubmit}
+                addressType="Measurement"
+                onNext={(address, addressId) => handleMeasurementAddressSubmit(address, addressId)}
                 onBack={() => {
                   setStep(2);
+                }}
+                initialAddress={measurementAddress}
+              />
+            )}
+
+            {step === 4 && (
+              <AddressInput
+                user={user}
+                addressType="Delivery"
+                onNext={(address, addressId) => handleDeliveryAddressSubmit(address, addressId)}
+                onBack={() => {
+                  setStep(3);
                 }}
                 initialAddress={deliveryAddress}
               />
             )}
 
-            {step === 4 && selectedSlot && deliveryAddress && (
+            {step === 5 && selectedSlot && (measurementAddress || measurementAddressId) && (deliveryAddress || deliveryAddressId) && (
               <OrderConfirmation
                 bookingDate={new Date()}
                 measurementDate={(() => {
@@ -382,13 +430,14 @@ const BookingModal = ({ onClose, tailorName, tailorServices, businessId, user, t
                   delivery.setDate(stitching.getDate() + 5);
                   return delivery;
                 })()}
+                measurementAddress={measurementAddress}
                 deliveryAddress={deliveryAddress}
                 selectedClothes={selectedClothes}
                 tailorName={tailorName}
                 tailorItemPrices={tailorItemPrices}
                 onConfirm={handleOrderConfirm}
                 onBack={() => {
-                  setStep(3);
+                  setStep(4);
                 }}
                 isLoading={isCreatingOrder}
               />
